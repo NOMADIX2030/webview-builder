@@ -1,0 +1,9 @@
+{
+  "appId": "{{PACKAGE_ID}}",
+  "appName": "{{APP_NAME}}",
+  "webDir": "www",
+  "server": {
+    "url": "{{WEB_URL}}",
+    "cleartext": true
+  }
+}

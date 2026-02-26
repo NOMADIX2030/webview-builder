@@ -1,0 +1,62 @@
+---
+description: 프로젝트 핵심 규칙 - 환경, Phase, MVP, 디자인, 협업
+alwaysApply: true
+---
+
+# 프로젝트 핵심 규칙
+
+## 1. 환경
+
+| 항목 | 값 |
+|------|-----|
+| **워크스페이스** | `/Users/awekers/Sites/www` |
+| **접근** | `http://localhost/` (nginx 문서 루트) |
+| **API Base** | `http://localhost/api` |
+| **로컬 실행** | nginx 통합: `/`→Next.js(3000), `/api`→Laravel |
+| **nginx** | Laravel + Next.js 구조에 맞게 수정 필요 (현재는 루트 index.php) |
+| **프로젝트 nginx** | `www/nginx/*.conf` 사용 가능 (sudo 없이 수정) |
+| **데이터베이스** | `webview_builder` (MariaDB 10.11, 호스트 127.0.0.1) |
+
+## 2. 개발 진행 순서
+
+- **Phase 1~5 순서를 반드시 지킨다**
+- **단계 건너뛰기 금지**
+- 각 Phase 완료 후 검증 후 다음 Phase 진행
+
+## 3. MVP 범위 (1차 구현)
+
+| 포함 | 제외 |
+|------|------|
+| 일반 웹뷰만 | 하이브리드 앱 |
+| Android APK만 | iOS IPA |
+| 3단계 흐름 | 회원/인증 |
+| Keystore 자동 생성 | 사용자 Keystore 업로드 |
+
+## 4. 디자인·코딩 규칙
+
+| 규칙 | 내용 |
+|------|------|
+| **UI 라이브러리** | **shadcn/ui만** 사용 (Flowbite, MUI, Chakra 등 금지) |
+| **디자인 원칙** | **모바일 우선** (375px~430px 기준) |
+| **폼** | React Hook Form + Zod + shadcn Form |
+| **품질** | 네이티브 앱 수준 (iOS HIG, Material Design) |
+
+## 5. 협업·문서
+
+- **문서 우선**: 새 기능·변경 시 문서 먼저 수정 → 구현
+- **참조 문서**: PROJECT_OVERVIEW, DEV_SPEC, TECH_STACK, AI_COLLABORATION_PROCESS
+- **데이터베이스**: docs/DATABASE.md (테이블 구축, 마이그레이션)
+- **환경 설정**: docs/ENVIRONMENT_SETUP.md (nginx, 개발 실행)
+
+## 6. 기술 스택
+
+| 계층 | 기술 | 버전 |
+|------|------|------|
+| 백엔드 | Laravel | 11.x |
+| 프론트엔드 | Next.js | 14.x |
+| DB | MariaDB | 10.x |
+| 캐시/큐 | Redis | 7.x |
+| 빌드 엔진 | Capacitor | 6.x |
+| UI | shadcn/ui + Tailwind | - |
+
+- **TypeScript** 사용 권장

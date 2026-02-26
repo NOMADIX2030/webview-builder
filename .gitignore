@@ -1,0 +1,51 @@
+# ===========================================
+# 웹뷰 앱 빌더 — .gitignore (Laravel + Next.js)
+# 맥북 클론 후 .env만 생성하면 바로 실행 가능하도록
+# ===========================================
+
+# ----- 환경 (반드시 제외, 클론 후 .env 생성)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ----- 의존성 (composer install, npm install로 복구)
+node_modules/
+vendor/
+
+# ----- 빌드 산출물
+frontend/.next/
+frontend/out/
+backend/storage/app/builds/*
+!backend/storage/app/builds/.gitkeep
+
+# ----- 업로드 파일 (런타임, 사용자 데이터)
+backend/storage/app/public/uploads/*
+!backend/storage/app/public/uploads/.gitkeep
+backend/storage/app/private/uploads/*
+!backend/storage/app/private/uploads/.gitkeep
+
+# ----- Laravel
+backend/storage/logs/*
+!backend/storage/logs/.gitkeep
+backend/storage/framework/cache/data/*
+!backend/storage/framework/cache/data/.gitkeep
+backend/storage/framework/sessions/*
+!backend/storage/framework/sessions/.gitkeep
+backend/storage/framework/views/*
+!backend/storage/framework/views/.gitkeep
+backend/bootstrap/cache/*.php
+!backend/bootstrap/cache/.gitignore
+
+# ----- IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# ----- 보안 (비밀번호 등 절대 커밋 금지)
+.cursor/rules/sudo-password.mdc
+
+# ----- 임시
+.tmp-cap-template/
