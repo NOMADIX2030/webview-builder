@@ -1,0 +1,35 @@
+---
+description: 웹뷰 빌더 프로젝트 맥락 — GitHub, 진행상황, 다음 단계 (재부팅 후 작업 이어가기용)
+alwaysApply: true
+---
+
+# webview-builder 프로젝트 맥락
+
+## GitHub
+
+| 항목 | 값 |
+|------|-----|
+| **계정** | NOMADIX2030 (옵티플로우) |
+| **레포** | https://github.com/NOMADIX2030/webview-builder |
+| **URL** | git@github.com:NOMADIX2030/webview-builder.git |
+| **Deploy 키** | `~/.ssh/deploy_webview-builder` (Read/write) |
+| **SSH 호스트** | `github-webview-builder` (config에 등록됨) |
+| **클론** | `git clone git@github-webview-builder:NOMADIX2030/webview-builder.git` |
+
+## 프로젝트 완료 상태 (2026-02-27)
+
+- **웹뷰 APK 빌드**: 1~3단계 완성, 2~5분 동기 실행
+- **앱 아이콘**: 적용됨 (업로드 경로 public/private 해석, PHP GD 리사이징)
+- **알려진 이슈**: 3단계 아이콘 미리보기 비율/여백이 실제 APK와 다름 (추후 개선)
+
+## 다음 단계 (재개 시)
+
+1. 웹뷰 아이콘·추가 사항 테스트 (3단계 미리보기 비율 등)
+2. 하이브리드 앱 빌드로 확장 (푸시, 네이티브 기능)
+
+## 핵심 경로
+
+- 워크스페이스: `/Users/awekers/Sites/www`
+- 템플릿: `backend/storage/app/build-templates/webview-app/`
+- 빌드: `backend/app/Services/CapacitorBuildService.php`
+- 문서: `docs/PROJECT_STATUS.md`, `DEV_SPEC.md`
