@@ -92,7 +92,7 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 export ANDROID_HOME=/usr/local/share/android-commandlinetools
 ```
 
-> **참고**: `backend/queue-with-env.sh`를 사용하면 위 환경 변수를 자동으로 로드합니다.
+> **참고**: `webview-builder/queue-with-env.sh`를 사용하면 위 환경 변수를 자동으로 로드합니다.
 
 적용: `source ~/.zshrc`
 

@@ -1,5 +1,5 @@
 # ===========================================
-# 웹뷰 앱 빌더 — .gitignore (Laravel + Next.js)
+# 웹뷰 앱 빌더 — .gitignore (Laravel Blade + Tailwind)
 # 맥북 클론 후 .env만 생성하면 바로 실행 가능하도록
 # ===========================================
 
@@ -14,28 +14,26 @@ node_modules/
 vendor/
 
 # ----- 빌드 산출물
-frontend/.next/
-frontend/out/
-backend/storage/app/builds/*
-!backend/storage/app/builds/.gitkeep
+webview-builder/storage/app/builds/*
+!webview-builder/storage/app/builds/.gitkeep
 
 # ----- 업로드 파일 (런타임, 사용자 데이터)
-backend/storage/app/public/uploads/*
-!backend/storage/app/public/uploads/.gitkeep
-backend/storage/app/private/uploads/*
-!backend/storage/app/private/uploads/.gitkeep
+webview-builder/storage/app/public/uploads/*
+!webview-builder/storage/app/public/uploads/.gitkeep
+webview-builder/storage/app/private/uploads/*
+!webview-builder/storage/app/private/uploads/.gitkeep
 
 # ----- Laravel
-backend/storage/logs/*
-!backend/storage/logs/.gitkeep
-backend/storage/framework/cache/data/*
-!backend/storage/framework/cache/data/.gitkeep
-backend/storage/framework/sessions/*
-!backend/storage/framework/sessions/.gitkeep
-backend/storage/framework/views/*
-!backend/storage/framework/views/.gitkeep
-backend/bootstrap/cache/*.php
-!backend/bootstrap/cache/.gitignore
+webview-builder/storage/logs/*
+!webview-builder/storage/logs/.gitkeep
+webview-builder/storage/framework/cache/data/*
+!webview-builder/storage/framework/cache/data/.gitkeep
+webview-builder/storage/framework/sessions/*
+!webview-builder/storage/framework/sessions/.gitkeep
+webview-builder/storage/framework/views/*
+!webview-builder/storage/framework/views/.gitkeep
+webview-builder/bootstrap/cache/*.php
+!webview-builder/bootstrap/cache/.gitignore
 
 # ----- IDE / OS
 .idea/

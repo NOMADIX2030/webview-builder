@@ -1,7 +1,7 @@
 # 웹뷰 앱 빌드 서비스 — 환경 설정 방안
 
 > **목적**: 로컬 개발 환경 설정 (localhost 기준)  
-> **상태**: 확정 — localhost(nginx) 통합 방식 적용
+> **상태**: 확정 — Laravel Blade 단일 앱 (nginx 통합)
 
 ---
 
@@ -11,40 +11,39 @@
 
 `www/nginx/` 폴더에 프로젝트 전용 설정을 두고, 메인 `www.conf`의 `include`로 불러온다. (sudo 없이 수정 가능)
 
-### 1.2 제안 구조
+### 1.2 구조
 
 | 경로 | 역할 |
 |------|------|
-| `/` | Next.js 프론트엔드 (프록시 또는 정적 파일) |
-| `/api` | Laravel API (backend/public) |
+| `/` | Laravel Blade (3단계 폼, 빌드 상태) |
+| `/api` | Laravel API (webview-builder/public) |
 | `/storage` | Laravel storage 링크 (업로드 파일) |
 
 ### 1.3 구체 설정 (www/nginx/webview-builder.conf)
 
-> 메인 www.conf의 `include www/nginx/*.conf`로 로드. `location ^~ /`는 메인 설정의 `location /`보다 우선.
+> 메인 www.conf의 `include www/nginx/*.conf`로 로드.
 
 ```nginx
-# /api → Laravel (backend/public/index.php)
+# /api → Laravel API
 location ^~ /api {
     fastcgi_pass 127.0.0.1:9000;
-    fastcgi_param SCRIPT_FILENAME /Users/awekers/Sites/www/backend/public/index.php;
-    fastcgi_param SCRIPT_NAME /index.php;
-    include fastcgi_params;
+    fastcgi_param SCRIPT_FILENAME /Users/.../webview-builder/public/index.php;
+    ...
 }
 
 # /storage → Laravel storage (업로드 파일)
 location ^~ /storage {
-    alias /Users/awekers/Sites/www/backend/storage/app/public;
+    alias /Users/.../webview-builder/storage/app/public;
 }
 
-# / → Next.js (포트 3000 프록시, ^~ 로 메인 location / 대체)
-location ^~ / {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection 'upgrade';
-    proxy_set_header Host $host;
-    proxy_cache_bypass $http_upgrade;
+# / → Laravel Blade (try_files → index.php)
+location ~ ^/(?!api|storage|internal-download) {
+    root /Users/.../webview-builder/public;
+    try_files $uri $uri/ /index.php$uri$is_args$args;
+}
+location ^~ /index.php {
+    fastcgi_pass 127.0.0.1:9000;
+    ...
 }
 ```
 
@@ -54,73 +53,64 @@ location ^~ / {
 
 ## 2. 로컬 개발 실행 방식
 
-### 2.1 방안 A: nginx 통합 (권장)
+### 2.1 nginx 통합 (권장)
 
 | 서비스 | 실행 | 접근 |
 |--------|------|------|
-| **Next.js** | `cd frontend && npm run dev` (포트 3000) | nginx가 `/`를 3000으로 프록시 |
-| **Laravel** | nginx + PHP-FPM (기존) | `/api` → backend/public |
-**접근**: `http://localhost/` → Next.js, `http://localhost/api` → Laravel  
+| **Laravel** | nginx + PHP-FPM | `/` → Blade, `/api` → API |
+
+**접근**: `http://localhost/` → Laravel Blade 단일 앱  
 **CORS**: 동일 origin (localhost:80)이므로 CORS 불필요.
 
 **시작 순서**:
 1. nginx 실행 (기존)
 2. PHP-FPM 실행 (기존)
-3. `npm run dev` (frontend)
 
 **빌드**: "빌드 시작" 클릭 시 동기 실행 (2~5분 소요). 별도 Queue 워커 불필요.  
 **APK 빌드 시**: Java JDK 17, Android SDK 필요. → **docs/BUILD_ENVIRONMENT.md** 참조.  
-**nginx**: `fastcgi_read_timeout 600` 설정됨 (빌드 요청용). 변경 후 `nginx -s reload`.
+**nginx**: `fastcgi_read_timeout 600` 설정됨 (빌드 요청용). 변경 후 `nginx -s reload`.  
+**APK 다운로드**: X-Accel-Redirect → nginx가 직접 파일 서빙. `fastcgi_buffering off` 설정됨.  
+**문제 시**:
+- `fastcgi_temp` 권한 오류: `sudo chmod -R 1777 /usr/local/var/run/nginx/fastcgi_temp` 후 nginx 재시작.
 
-### 2.2 방안 B: 분리 실행 (개발 편의)
+### 2.1.1 PHP-FPM (macOS /Users 경로)
 
-| 서비스 | 실행 | 접근 |
-|--------|------|------|
-| **Next.js** | `npm run dev` | `http://localhost:3000` |
-| **Laravel** | `php artisan serve --port=8000` | `http://localhost:8000` |
+로컬 개발 시 PHP-FPM이 `/Users/...`에 접근하려면 `www.conf`의 `user`를 본인 사용자로 설정:
 
-**환경 변수**: `NEXT_PUBLIC_API_URL=http://localhost:8000/api`  
-**CORS**: Laravel `config/cors.php`에서 `localhost:3000` 허용 필요.
+```bash
+# /usr/local/etc/php/8.2/php-fpm.d/www.conf
+user = awekers
+group = staff
+```
 
-**장점**: nginx 설정 없이 빠른 개발. **단점**: CORS 설정, 포트 분리.
+### 2.2 Vite 개발 모드 (선택)
 
-### 2.3 확정: 방안 A (localhost nginx 통합)
+Blade CSS/JS 핫 리로드가 필요할 때:
+
+```bash
+cd webview-builder && npm run dev
+```
+
+- Vite가 `http://localhost:5173`에서 HMR 서빙
+- `@vite` 지시문이 개발 시 자동으로 Vite 서버 연결
+
+### 2.3 확정: Laravel Blade 단일 앱
 
 - **로컬 실행**: `http://localhost/`로 통일
-- **nginx**가 `/` → Next.js(3000), `/api` → Laravel, `/storage` → 업로드 파일 처리
+- **nginx**가 `/` → Laravel Blade, `/api` → Laravel API, `/storage` → 업로드 파일 처리
 - **CORS 불필요** (동일 origin)
 
 ---
 
 ## 3. 문서 위치 정리
 
-### 3.1 방안 A: docs/로 통합
+### 3.1 확정: docs/ 통합
 
-| 현재 | 제안 |
-|------|------|
-| 루트: PROJECT_OVERVIEW, DEV_SPEC, TECH_STACK, AI_COLLABORATION | `docs/`로 이동 |
-| docs/: backend.env.example | 유지 |
-
-**결과**: `docs/`에 모든 문서 집중.
-
-### 3.2 방안 B: 루트 유지 (현재)
-
-| 현재 | 제안 |
-|------|------|
-| 루트: 주요 문서 | 유지 |
-| docs/: 환경·DB 등 부가 문서 | 유지 |
-
-**결과**: DEV_SPEC 3.1만 수정 — "문서는 루트와 docs/에 분산"으로 명시.
-
-### 3.3 확정: 방안 B
-
-**루트 유지** — 핵심 문서는 루트, 부가 문서는 docs/. DEV_SPEC 3.1에 반영.
+**모든 프로젝트 문서**는 **docs/**에 위치. 루트에는 README.md, AGENTS.md만 유지.
 
 ---
 
 ## 4. .gitignore (GitHub 개설 시 적용)
-
-> **시점**: 초기 개발 완료 후 GitHub 개설 시 .gitignore 추가 및 git init.
 
 ### 4.1 제안 내용
 
@@ -135,14 +125,13 @@ node_modules/
 vendor/
 
 # 빌드
-frontend/.next/
-frontend/out/
-backend/storage/app/builds/*
-!backend/storage/app/builds/.gitkeep
+webview-builder/public/build/
+webview-builder/storage/app/builds/*
+!webview-builder/storage/app/builds/.gitkeep
 
 # Laravel
-backend/storage/*.key
-backend/bootstrap/cache/*.php
+webview-builder/storage/*.key
+webview-builder/bootstrap/cache/*.php
 
 # IDE
 .idea/
@@ -162,9 +151,9 @@ backend/bootstrap/cache/*.php
 
 ### 5.1 절차
 
-1. `cd backend && php artisan storage:link`
+1. `cd webview-builder && php artisan storage:link`
 2. `public/storage` → `storage/app/public` 심볼릭 링크 생성
-3. nginx `location /storage`에서 `backend/storage/app/public` 또는 `backend/public/storage` 서빙
+3. nginx `location /storage`에서 `webview-builder/storage/app/public` 서빙
 
 ### 5.2 Laravel 기본
 
@@ -177,11 +166,11 @@ backend/bootstrap/cache/*.php
 
 | 단계 | 항목 | 시점 |
 |------|------|------|
-| 1 | 문서 위치 (DEV_SPEC 3.1 수정) | Phase 1 전 |
-| 2 | nginx 설정 (www/nginx/) | Phase 1 완료 후 (backend, frontend 생성 직후) |
-| 3 | 로컬 개발 (방안 A: localhost) | Phase 1~5 전체 |
+| 1 | 문서 위치 (docs/ 통합 완료) | - |
+| 2 | nginx 설정 (www/nginx/) | Phase 1 완료 후 |
+| 3 | 로컬 개발 (localhost) | Phase 1~5 전체 |
 | 4 | storage 링크 | Phase 3 (Upload API 구현 시) |
-| 5 | **APK 빌드 환경** (Java, Android SDK) | Phase 5 APK 빌드 시 → **docs/BUILD_ENVIRONMENT.md** |
+| 5 | **APK 빌드 환경** (Java, Android SDK) | Phase 5 APK 빌드 시 → **BUILD_ENVIRONMENT.md** |
 | 6 | .gitignore, git init | 초기 개발 완료 후 GitHub 개설 시 |
 
 ---
@@ -190,15 +179,33 @@ backend/bootstrap/cache/*.php
 
 | 문서 | 용도 |
 |------|------|
-| **docs/BUILD_ENVIRONMENT.md** | APK 빌드용 Java, Android SDK 설치 |
-| docs/DATABASE.md | DB 스키마, 마이그레이션 |
-| docs/backend.env.example | Laravel 환경 변수 |
+| **BUILD_ENVIRONMENT.md** | APK 빌드용 Java, Android SDK 설치 |
+| DATABASE.md | DB 스키마, 마이그레이션 |
+| webview-builder.env.example | Laravel 환경 변수 |
 
 ---
 
-## 8. 변경 이력
+## 8. Laravel 12 nginx 설정 (www.conf)
+
+**참조**: [Laravel 12.x Deployment - Nginx](https://laravel.com/docs/12.x/deployment#nginx)
+
+| 항목 | Laravel 12 공식 |
+|------|-----------------|
+| root | `프로젝트/public` (webview-builder/public) |
+| try_files | `$uri $uri/ /index.php?$query_string` |
+| error_page | `404 /index.php` |
+| PHP location | `location ~ ^/index\.php(/|$)` (index.php만) |
+| SCRIPT_FILENAME | `$realpath_root$fastcgi_script_name` 또는 명시 경로 |
+
+**폴더명 변경 시**: `backend` → `webview-builder`로 바뀌면 `www.conf`의 `root`와 `SCRIPT_FILENAME` 경로를 업데이트해야 함.
+
+---
+
+## 9. 변경 이력
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-02-28 | Laravel 12 공식 nginx 설정 적용, PHP-FPM /Users 권한 안내 |
+| 2026-02-28 | Laravel Blade 마이그레이션 반영 (Next.js 제거) |
 | 2026-02-27 | APK 빌드 환경 문서 링크 추가 |
 | 2026-02-27 | 최초 작성 (우선순위 항목별 방안) |

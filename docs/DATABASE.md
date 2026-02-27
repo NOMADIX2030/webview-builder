@@ -168,7 +168,7 @@ public function up(): void
 | 문서 | 용도 |
 |------|------|
 | DEV_SPEC.md 6. 데이터베이스 스키마 | API 연동, 스키마 요약 |
-| docs/backend.env.example | DB 접속 환경 변수 |
+| webview-builder.env.example | DB 접속 환경 변수 |
 | Laravel Migrations | https://laravel.com/docs/migrations |
 
 ---
