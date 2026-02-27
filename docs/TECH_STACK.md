@@ -143,6 +143,7 @@
 | 역할 | 설명 |
 |------|------|
 | **웹뷰 래핑** | 사용자 입력 URL을 WebView에 로드 |
+| **OAuth 처리** | 카카오·구글·네이버 등 OAuth URL을 WebView 내 로드 (외부 브라우저 이탈 방지) |
 | **APK 출력** | Android APK, Keystore 자동 생성 |
 | **템플릿** | `webview-builder/storage/app/build-templates/webview-app/` |
 

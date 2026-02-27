@@ -628,6 +628,7 @@ CACHE_STORE=database
 | **3단계** | ✅ 완료 | 시뮬레이션, APK 적용 아이콘 미리보기, 빌드 요청 |
 | **빌드** | ✅ 완료 | Capacitor 템플릿, Android APK, Keystore 자동 생성 |
 | **다운로드** | ✅ 완료 | APK, Keystore 다운로드 |
+| **앱 동작** | ✅ 완료 | 뒤로가기 2회 종료, OAuth/소셜 로그인(카카오 등) 인앱 처리 |
 
 **알려진 이슈**:
 - 3단계 아이콘 미리보기 비율/여백이 실제 APK와 다름 (추후 개선 예정)
@@ -649,6 +650,8 @@ CACHE_STORE=database
 - [x] API: GET /api/build/{id} → status, artifacts
 - [x] 2~5분 소요 후 APK 파일 생성
 - [x] 다운로드: APK, Keystore 다운로드 가능
+- [x] 앱: 뒤로가기 2회 연속 시 종료
+- [x] 앱: 카카오 등 OAuth 로그인 인앱 처리 (외부 브라우저 이탈 없음)
 
 ---
 
@@ -675,6 +678,7 @@ CACHE_STORE=database
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-02-27 | OAuth/소셜 로그인(카카오) 검증 완료 반영, 11.1 앱 동작 항목 추가 |
 | 2026-02-27 | 문서 검토: Blade + Tailwind 반영, 라우팅 경로 수정, shadcn 참조 제거 |
 | 2026-02-27 | 문서 위치 docs/ 통합 반영 |
 | 2026-02-27 | 데이터베이스 환경 추가 (webview_builder, 6.2, 10.10) |

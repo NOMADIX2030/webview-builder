@@ -13,11 +13,11 @@
 
 ### 1.2 구조
 
-| 경로 | 역할 |
-|------|------|
-| `/` | Laravel Blade (3단계 폼, 빌드 상태) |
-| `/api` | Laravel API (webview-builder/public) |
-| `/storage` | Laravel storage 링크 (업로드 파일) |
+| 경로       | 역할                                 |
+| ---------- | ------------------------------------ |
+| `/`        | Laravel Blade (3단계 폼, 빌드 상태)  |
+| `/api`     | Laravel API (webview-builder/public) |
+| `/storage` | Laravel storage 링크 (업로드 파일)   |
 
 ### 1.3 구체 설정 (www/nginx/webview-builder.conf)
 
@@ -55,14 +55,15 @@ location ^~ /index.php {
 
 ### 2.1 nginx 통합 (권장)
 
-| 서비스 | 실행 | 접근 |
-|--------|------|------|
+| 서비스      | 실행            | 접근                      |
+| ----------- | --------------- | ------------------------- |
 | **Laravel** | nginx + PHP-FPM | `/` → Blade, `/api` → API |
 
 **접근**: `http://localhost/` → Laravel Blade 단일 앱  
 **CORS**: 동일 origin (localhost:80)이므로 CORS 불필요.
 
 **시작 순서**:
+
 1. nginx 실행 (기존)
 2. PHP-FPM 실행 (기존)
 
@@ -71,6 +72,7 @@ location ^~ /index.php {
 **nginx**: `fastcgi_read_timeout 600` 설정됨 (빌드 요청용). 변경 후 `nginx -s reload`.  
 **APK 다운로드**: X-Accel-Redirect → nginx가 직접 파일 서빙. `fastcgi_buffering off` 설정됨.  
 **문제 시**:
+
 - `fastcgi_temp` 권한 오류: `sudo chmod -R 1777 /usr/local/var/run/nginx/fastcgi_temp` 후 nginx 재시작.
 
 ### 2.1.1 PHP-FPM (macOS /Users 경로)
@@ -164,24 +166,24 @@ webview-builder/bootstrap/cache/*.php
 
 ## 6. 적용 순서
 
-| 단계 | 항목 | 시점 |
-|------|------|------|
-| 1 | 문서 위치 (docs/ 통합 완료) | - |
-| 2 | nginx 설정 (www/nginx/) | Phase 1 완료 후 |
-| 3 | 로컬 개발 (localhost) | Phase 1~5 전체 |
-| 4 | storage 링크 | Phase 3 (Upload API 구현 시) |
-| 5 | **APK 빌드 환경** (Java, Android SDK) | Phase 5 APK 빌드 시 → **BUILD_ENVIRONMENT.md** |
-| 6 | .gitignore, git init | 초기 개발 완료 후 GitHub 개설 시 |
+| 단계 | 항목                                  | 시점                                           |
+| ---- | ------------------------------------- | ---------------------------------------------- |
+| 1    | 문서 위치 (docs/ 통합 완료)           | -                                              |
+| 2    | nginx 설정 (www/nginx/)               | Phase 1 완료 후                                |
+| 3    | 로컬 개발 (localhost)                 | Phase 1~5 전체                                 |
+| 4    | storage 링크                          | Phase 3 (Upload API 구현 시)                   |
+| 5    | **APK 빌드 환경** (Java, Android SDK) | Phase 5 APK 빌드 시 → **BUILD_ENVIRONMENT.md** |
+| 6    | .gitignore, git init                  | 초기 개발 완료 후 GitHub 개설 시               |
 
 ---
 
 ## 7. 관련 문서
 
-| 문서 | 용도 |
-|------|------|
-| **BUILD_ENVIRONMENT.md** | APK 빌드용 Java, Android SDK 설치 |
-| DATABASE.md | DB 스키마, 마이그레이션 |
-| webview-builder.env.example | Laravel 환경 변수 |
+| 문서                        | 용도                              |
+| --------------------------- | --------------------------------- |
+| **BUILD_ENVIRONMENT.md**    | APK 빌드용 Java, Android SDK 설치 |
+| DATABASE.md                 | DB 스키마, 마이그레이션           |
+| webview-builder.env.example | Laravel 환경 변수                 |
 
 ---
 
@@ -189,12 +191,12 @@ webview-builder/bootstrap/cache/*.php
 
 **참조**: [Laravel 12.x Deployment - Nginx](https://laravel.com/docs/12.x/deployment#nginx)
 
-| 항목 | Laravel 12 공식 |
-|------|-----------------|
-| root | `프로젝트/public` (webview-builder/public) |
-| try_files | `$uri $uri/ /index.php?$query_string` |
-| error_page | `404 /index.php` |
-| PHP location | `location ~ ^/index\.php(/|$)` (index.php만) |
+| 항목            | Laravel 12 공식                                     |
+| --------------- | --------------------------------------------------- | ----------------- |
+| root            | `프로젝트/public` (webview-builder/public)          |
+| try_files       | `$uri $uri/ /index.php?$query_string`               |
+| error_page      | `404 /index.php`                                    |
+| PHP location    | `location ~ ^/index\.php(/                          | $)` (index.php만) |
 | SCRIPT_FILENAME | `$realpath_root$fastcgi_script_name` 또는 명시 경로 |
 
 **폴더명 변경 시**: `backend` → `webview-builder`로 바뀌면 `www.conf`의 `root`와 `SCRIPT_FILENAME` 경로를 업데이트해야 함.
@@ -203,9 +205,9 @@ webview-builder/bootstrap/cache/*.php
 
 ## 9. 변경 이력
 
-| 날짜 | 내용 |
-|------|------|
+| 날짜       | 내용                                                      |
+| ---------- | --------------------------------------------------------- |
 | 2026-02-28 | Laravel 12 공식 nginx 설정 적용, PHP-FPM /Users 권한 안내 |
-| 2026-02-28 | Laravel Blade 마이그레이션 반영 (Next.js 제거) |
-| 2026-02-27 | APK 빌드 환경 문서 링크 추가 |
-| 2026-02-27 | 최초 작성 (우선순위 항목별 방안) |
+| 2026-02-28 | Laravel Blade 마이그레이션 반영 (Next.js 제거)            |
+| 2026-02-27 | APK 빌드 환경 문서 링크 추가                              |
+| 2026-02-27 | 최초 작성 (우선순위 항목별 방안)                          |

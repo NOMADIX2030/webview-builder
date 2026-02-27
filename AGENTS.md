@@ -49,9 +49,11 @@
 - 앱 아이콘: @capacitor/assets 1차, PHP GD 폴백
 - 아이콘 미리보기: 실제와 90% 이상 동일 (rounded-[22%], object-cover, bg-white) — 검증 완료
 - 뒤로가기: OnBackPressedCallback → webView.canGoBack() 시 goBack() → 루트에서 2회 연속 시 종료 (알림 없음) — 검증 완료
+- OAuth/소셜 로그인: OAuthWebViewClient로 카카오·구글·네이버 등 OAuth URL을 WebView 내 로드 (외부 브라우저 이탈 방지) — 카카오 로그인 검증 완료
 
 ### 최근 작업 (2026-02-28)
 
+- **OAuth/소셜 로그인**: OAuthWebViewClient 적용, 카카오 로그인 인앱 처리 (검증 완료)
 - **Laravel Blade 마이그레이션**: Next.js 제거, Blade + Tailwind 단일 앱
 - **뒤로가기**: Snackbar 제거, 루트에서 2회 연속 시 종료 (안드로이드 테스트 완료)
 - EMFILE 해결: limit.maxfiles.plist LaunchDaemon (8192/81920)
