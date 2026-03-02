@@ -1,7 +1,10 @@
 # storage/app: 업로드·빌드 제외, build-templates·디렉터리 구조 포함
 *
 !build-templates/
+!build-templates/**
 !builds/
 !private/
 !public/
 !.gitignore
+# build-templates 내 제외
+build-templates/**/.DS_Store
