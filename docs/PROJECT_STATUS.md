@@ -32,7 +32,7 @@
 | **아이콘 미리보기** | `rounded-[22%]` (스쿼시클), `object-cover`, `bg-white` | 실제 APK와 90% 이상 일치 (검증 완료) |
 | **뒤로가기** | `goBack()` → 서브 경로면 origin 이동 → 루트에서 뒤로가기 2회 연속 시 종료 (알림 없음, 2초 이내) | 앱 내 이전 페이지 이동 + 이중 클릭 종료 |
 | **OAuth/소셜 로그인** | 카카오·구글·네이버 등 OAuth URL을 WebView 내에서 로드 (외부 브라우저 이탈 방지) | API 26+ 적용, 카카오 로그인 검증 완료 |
-| **PDF/이미지 저장** | DownloadListener → PDF는 Downloads, 이미지는 Pictures(갤러리) 폴더에 저장 | WRITE_EXTERNAL_STORAGE (API 28 이하) |
+| **PDF/이미지 저장** | DownloadListener → PDF는 Downloads, 이미지는 Pictures(갤러리). blob URL: 훅+이중전략+클릭가로채기 (optiflow 등) | WRITE_EXTERNAL_STORAGE, READ_MEDIA_IMAGES (API 33+) |
 | **아이콘 생성** | `@capacitor/assets` 1차 시도, 실패 시 PHP GD 폴백 | `npx @capacitor/assets generate --android` |
 | **다운로드** | `<a download>` + 상대 경로 → Laravel X-Accel-Redirect → nginx internal location | PHP 버퍼 없음, 전체 파일 |
 | **빌드 템플릿** | `node_modules` 복사 후 삭제 → `npm install`로 새로 생성 | 깨진 심볼릭 링크로 copy 실패 방지 |
@@ -42,7 +42,6 @@
 | 이슈 | 설명 | 우선순위 |
 |------|------|----------|
 | 3단계 아이콘 미리보기 | 기기별 마스크(원형/스쿼시클/둥근 사각형)로 100% 일치 불가 | 낮음 (90% 이상 동일로 검증 완료) |
-| **이미지 저장 미동작** | 설치 시 권한 동의 화면 없음, 이미지 저장 안 됨. 원인: blob URL 미처리, API 33+ 권한 요청 누락 등. DownloadBridge·handleBlobDownload 시도했으나 미검증. 추후 조사 필요. | 높음 |
 
 ---
 
@@ -63,3 +62,4 @@
 | BUILD_ENVIRONMENT.md | Java, Android SDK, Keystore 검증 |
 | ENVIRONMENT_SETUP.md | nginx, 로컬 실행 방식 |
 | DATABASE.md | 데이터베이스 테이블 |
+| CAPACITOR_LEARNING.md | Capacitor 기능, 플러그인, iOS 확장 참고 |

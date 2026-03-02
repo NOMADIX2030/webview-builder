@@ -128,6 +128,7 @@ class CapacitorBuildService
         }
 
         $this->injectConfig($projectPath, $build);
+        $this->injectExtraPermissions($projectPath, $build);
         $this->copyIcons($projectPath, $build);
 
         $keystorePath = $this->generateKeystore($buildDir, $build);
@@ -181,6 +182,42 @@ class CapacitorBuildService
             $content = preg_replace('/<string name="app_name">[^<]+<\/string>/', '<string name="app_name">' . htmlspecialchars($build->app_name, ENT_XML1) . '</string>', $content);
             $content = preg_replace('/<string name="title_activity_main">[^<]+<\/string>/', '<string name="title_activity_main">' . htmlspecialchars($build->app_name, ENT_XML1) . '</string>', $content);
             File::put($stringsPath, $content);
+        }
+    }
+
+    /**
+     * 2단계에서 선택한 추가 권한을 AndroidManifest 및 MainActivity에 주입.
+     */
+    private function injectExtraPermissions(string $projectPath, Build $build): void
+    {
+        $allowed = ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'CAMERA', 'RECORD_AUDIO', 'READ_CONTACTS', 'WRITE_CONTACTS', 'CALL_PHONE', 'READ_CALENDAR', 'WRITE_CALENDAR', 'SEND_SMS', 'RECEIVE_SMS', 'BLUETOOTH_CONNECT'];
+        $selected = array_intersect($build->config_json['extra_permissions'] ?? [], $allowed);
+        // 위치 선택 시 FINE + COARSE 둘 다 주입 (일반적으로 함께 사용)
+        if (in_array('ACCESS_FINE_LOCATION', $selected, true)) {
+            $selected[] = 'ACCESS_COARSE_LOCATION';
+        }
+        $extra = array_values(array_unique($selected));
+
+        // AndroidManifest
+        $xml = empty($extra)
+            ? ''
+            : implode("\n    ", array_map(fn ($p) => '<uses-permission android:name="android.permission.' . $p . '" />', array_unique($extra)));
+        $manifestPath = "{$projectPath}/android/app/src/main/AndroidManifest.xml";
+        if (File::exists($manifestPath)) {
+            $content = File::get($manifestPath);
+            $content = str_replace('<!-- {{EXTRA_PERMISSIONS}} -->', $xml, $content);
+            File::put($manifestPath, $content);
+        }
+
+        // MainActivity: EXTRA_PERMISSIONS 배열 (런타임 요청용)
+        $javaArray = empty($extra)
+            ? '{}'
+            : '{' . implode(', ', array_map(fn ($p) => '"android.permission.' . $p . '"', array_unique($extra))) . '}';
+        $mainActivityPath = "{$projectPath}/android/app/src/main/java/com/webview/app/MainActivity.java";
+        if (File::exists($mainActivityPath)) {
+            $content = File::get($mainActivityPath);
+            $content = str_replace('{{EXTRA_PERMISSIONS_ARRAY}}', $javaArray, $content);
+            File::put($mainActivityPath, $content);
         }
     }
 

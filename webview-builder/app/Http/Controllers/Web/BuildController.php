@@ -27,7 +27,7 @@ class BuildController extends Controller
     {
         $validated = $request->validate([
             'web_url' => ['required', 'url'],
-            'app_type' => ['required', 'in:webview,hybrid'],
+            'app_type' => ['required', 'in:webview'],
             'app_icon' => ['required', 'file', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
             'splash' => ['nullable', 'file', 'mimes:png,jpg,jpeg', 'max:5120'],
         ]);
@@ -64,6 +64,7 @@ class BuildController extends Controller
             'support_url' => $generated['supportUrl'],
             'version_name' => $generated['versionName'],
             'version_code' => $generated['versionCode'],
+            'extra_permissions' => [],
         ]);
 
         return view('step2', [
@@ -86,7 +87,11 @@ class BuildController extends Controller
             'support_url' => ['required', 'url'],
             'version_name' => ['required', 'string', 'max:50'],
             'version_code' => ['required', 'integer', 'min:1'],
+            'extra_permissions' => ['nullable', 'array'],
+            'extra_permissions.*' => ['string', 'in:CAMERA,RECORD_AUDIO,READ_CONTACTS,WRITE_CONTACTS,CALL_PHONE,READ_CALENDAR,WRITE_CALENDAR,SEND_SMS,RECEIVE_SMS,BLUETOOTH_CONNECT'],
         ]);
+
+        $validated['extra_permissions'] = $validated['extra_permissions'] ?? [];
 
         session(['build_step2' => $validated]);
 
@@ -129,6 +134,9 @@ class BuildController extends Controller
             'support_url' => $step2['support_url'],
             'app_icon_path' => $step1['app_icon_path'],
             'splash_image_path' => $step1['splash_image_path'],
+            'config_json' => [
+                'extra_permissions' => $step2['extra_permissions'] ?? [],
+            ],
         ]);
 
         try {

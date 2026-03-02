@@ -30,17 +30,12 @@
             @enderror
         </div>
 
-        <div>
-            <label for="app_type" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">앱 유형</label>
-            <select name="app_type" id="app_type"
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                <option value="webview" {{ old('app_type', 'webview') === 'webview' ? 'selected' : '' }}>웹뷰</option>
-                <option value="hybrid" disabled>하이브리드 (추후 지원)</option>
-            </select>
-            @error('app_type')
-                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
-            @enderror
+        <div class="rounded-lg border border-blue-100 bg-blue-50 p-4 dark:border-blue-900/50 dark:bg-blue-900/20">
+            <p class="text-sm font-medium text-blue-800 dark:text-blue-300">기본 권한 포함</p>
+            <p class="mt-1 text-xs text-blue-700 dark:text-blue-400">앱 실행 시 다음 권한이 요청됩니다: 저장소(파일·사진), 알림. 2단계에서 위치, 카메라, 마이크 등 추가 권한을 선택할 수 있습니다.</p>
         </div>
+
+        <input type="hidden" name="app_type" value="webview">
 
         <div>
             <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">앱 아이콘 *</label>

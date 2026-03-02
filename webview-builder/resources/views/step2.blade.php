@@ -69,6 +69,33 @@
             @enderror
         </div>
 
+        <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-600">
+            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">추가 권한 (선택)</label>
+            <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">웹에서 사용하는 기능에 따라 필요한 권한을 선택하세요.</p>
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                @foreach([
+                    'ACCESS_FINE_LOCATION' => '위치',
+                    'CAMERA' => '카메라',
+                    'RECORD_AUDIO' => '마이크',
+                    'READ_CONTACTS' => '연락처 읽기',
+                    'WRITE_CONTACTS' => '연락처 쓰기',
+                    'CALL_PHONE' => '전화 걸기',
+                    'READ_CALENDAR' => '캘린더 읽기',
+                    'WRITE_CALENDAR' => '캘린더 쓰기',
+                    'SEND_SMS' => 'SMS 발송',
+                    'RECEIVE_SMS' => 'SMS 수신',
+                    'BLUETOOTH_CONNECT' => '블루투스 연결',
+                ] as $perm => $label)
+                <label class="flex items-center gap-2 rounded border border-gray-200 px-3 py-2 text-sm dark:border-gray-600">
+                    <input type="checkbox" name="extra_permissions[]" value="{{ $perm }}"
+                        {{ in_array($perm, old('extra_permissions', $step2['extra_permissions'] ?? [])) ? 'checked' : '' }}
+                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
+                    <span class="text-gray-700 dark:text-gray-300">{{ $label }}</span>
+                </label>
+                @endforeach
+            </div>
+        </div>
+
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label for="version_name" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">버전 이름</label>

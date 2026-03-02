@@ -49,7 +49,7 @@ public class DownloadHelper {
         }
     }
 
-    private static String extractFilename(String url, String contentDisposition, String mimeType) {
+    public static String extractFilename(String url, String contentDisposition, String mimeType) {
         String filename = null;
 
         if (contentDisposition != null) {

@@ -5,6 +5,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import androidx.activity.OnBackPressedCallback;
@@ -12,11 +13,16 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends BridgeActivity {
 
     private static final long BACK_PRESS_INTERVAL_MS = 2000;
-    private static final int PERMISSION_REQUEST_STORAGE = 1001;
+    private static final int PERMISSION_REQUEST_ALL = 1001;
+
+    /** 2단계에서 선택한 추가 권한 (빌드 시 주입) */
+    private static final String[] EXTRA_PERMISSIONS = {{EXTRA_PERMISSIONS_ARRAY}};
 
     private long lastBackPressTime = 0;
     private boolean oauthClientInstalled = false;
@@ -25,7 +31,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        requestStoragePermissionIfNeeded();
+        requestRequiredPermissions();
         installWebViewHandlers();
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -84,24 +90,49 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_REQUEST_STORAGE && grantResults.length > 0
-                && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            // 저장 권한 허용됨
+        if (requestCode == PERMISSION_REQUEST_ALL) {
+            // 권한 요청 결과 처리 (필요 시 추가 로직)
         }
     }
 
     /**
-     * PDF/이미지 저장을 위한 저장소 권한 요청 (API 23~32).
+     * 앱 실행 시 필수 권한 요청: 저장소, 알림.
+     * 2단계에서 선택한 추가 권한(위치, 카메라, 마이크 등)도 함께 요청.
      */
-    private void requestStoragePermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Build.VERSION.SDK_INT > Build.VERSION_CODES.S_V2) {
-            return;
+    private void requestRequiredPermissions() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return;
+
+        List<String> toRequest = new ArrayList<>();
+
+        // 저장소 (API 23~32)
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                toRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+                toRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+            }
+        } else {
+            // API 33+: READ_MEDIA_IMAGES (갤러리/이미지 저장)
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                toRequest.add(Manifest.permission.READ_MEDIA_IMAGES);
+            }
         }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE},
-                PERMISSION_REQUEST_STORAGE);
+
+        // 알림 (API 33+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                toRequest.add(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
+
+        // 추가 권한 (2단계에서 선택)
+        for (String p : EXTRA_PERMISSIONS) {
+            if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED) {
+                toRequest.add(p);
+            }
+        }
+
+        if (!toRequest.isEmpty()) {
+            ActivityCompat.requestPermissions(this, toRequest.toArray(new String[0]), PERMISSION_REQUEST_ALL);
         }
     }
 
@@ -114,10 +145,23 @@ public class MainActivity extends BridgeActivity {
         WebView webView = bridge.getWebView();
         if (webView == null) return;
 
+        // 모바일 웹과 동일하게 viewport 적용. 미설정 시 확대되어 드래그 필요.
+        WebSettings settings = webView.getSettings();
+        settings.setUseWideViewPort(true);
+        settings.setLoadWithOverviewMode(true);
+
         if (!downloadListenerInstalled) {
-            webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) ->
-                DownloadHelper.startDownload(this, url, userAgent, contentDisposition, mimeType, contentLength)
-            );
+            webView.addJavascriptInterface(new DownloadBridge(this), "AndroidBridge");
+            webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
+                if (url == null) return;
+                if (url.startsWith("data:")) {
+                    handleDataUrlDownload(webView, url, contentDisposition);
+                } else if (url.startsWith("blob:")) {
+                    handleBlobDownload(webView, url, contentDisposition, mimeType);
+                } else {
+                    DownloadHelper.startDownload(this, url, userAgent, contentDisposition, mimeType, contentLength);
+                }
+            });
             downloadListenerInstalled = true;
         }
 
@@ -131,5 +175,38 @@ public class MainActivity extends BridgeActivity {
             webView.setWebViewClient(new OAuthWebViewClient(currentClient));
             oauthClientInstalled = true;
         }
+    }
+
+    /**
+     * data: URL (html2canvas toDataURL 패턴). DownloadManager 미지원 → Java에서 직접 파싱·저장.
+     */
+    private void handleDataUrlDownload(WebView webView, String dataUrl, String contentDisposition) {
+        String filename = DownloadHelper.extractFilename("data:image/png", contentDisposition, "image/png");
+        new DownloadBridge(this).saveDataUrl(dataUrl, filename);
+    }
+
+    /**
+     * blob: URL은 DownloadManager로 처리 불가.
+     * 이중 전략: 1) fetch(blobUrl) → base64 → saveBlobData
+     *           2) fetch 실패 시 window._lastBlob 폴백 (URL.createObjectURL 훅으로 캡처됨)
+     */
+    private void handleBlobDownload(WebView webView, String blobUrl, String contentDisposition, String mimeType) {
+        String filename = DownloadHelper.extractFilename(blobUrl, contentDisposition, mimeType);
+        String escapedUrl = escapeForJs(blobUrl);
+        String escapedMime = escapeForJs(mimeType != null ? mimeType : "image/png");
+        String escapedFilename = escapeForJs(filename);
+        String script = "(function(){var u='" + escapedUrl + "',m='" + escapedMime + "',f='" + escapedFilename + "';" +
+            "function save(b){var rd=new FileReader();rd.onload=function(){var d=rd.result.split(',')[1];" +
+            "if(typeof AndroidBridge!='undefined'&&AndroidBridge.saveBlobData)AndroidBridge.saveBlobData(d,m,f);};" +
+            "rd.readAsDataURL(b);}" +
+            "fetch(u).then(function(r){return r.blob();}).then(save).catch(function(e){" +
+            "if(window._lastBlob){save(window._lastBlob);}else{console.error('blob save failed',e);}" +
+            "});})();";
+        webView.evaluateJavascript(script, null);
+    }
+
+    private static String escapeForJs(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r");
     }
 }

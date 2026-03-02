@@ -38,11 +38,13 @@
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- PDF/이미지 저장 -->
+    <!-- 저장소: API 23~32 -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <!-- 웹에서 위치/카메라 사용 시 (선택) -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- 저장소: API 33+ (이미지/갤러리) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- 알림: API 33+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 위치·카메라·마이크 등 선택 권한 (2단계) -->
+    <!-- {{EXTRA_PERMISSIONS}} -->
 </manifest>

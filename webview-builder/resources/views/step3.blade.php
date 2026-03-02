@@ -58,6 +58,30 @@
                     <dt class="text-gray-500 dark:text-gray-400">버전</dt>
                     <dd class="text-gray-900 dark:text-white">{{ $step2['version_name'] }} ({{ $step2['version_code'] }})</dd>
                 </div>
+                <div class="flex flex-col gap-1 border-t border-gray-200 pt-2 dark:border-gray-600" style="grid-column: 1 / -1;">
+                    <dt class="text-gray-500 dark:text-gray-400">권한</dt>
+                    <dd class="text-gray-900 dark:text-white text-xs">
+                        <p>기본: 저장소, 알림</p>
+                        @if(!empty($step2['extra_permissions'] ?? []))
+                            @php
+                                $labels = [
+                                    'ACCESS_FINE_LOCATION' => '위치',
+                                    'CAMERA' => '카메라',
+                                    'RECORD_AUDIO' => '마이크',
+                                    'READ_CONTACTS' => '연락처 읽기',
+                                    'WRITE_CONTACTS' => '연락처 쓰기',
+                                    'CALL_PHONE' => '전화 걸기',
+                                    'READ_CALENDAR' => '캘린더 읽기',
+                                    'WRITE_CALENDAR' => '캘린더 쓰기',
+                                    'SEND_SMS' => 'SMS 발송',
+                                    'RECEIVE_SMS' => 'SMS 수신',
+                                    'BLUETOOTH_CONNECT' => '블루투스 연결',
+                                ];
+                            @endphp
+                            <p class="mt-1">추가: {{ implode(', ', array_map(fn($p) => $labels[$p] ?? $p, $step2['extra_permissions'])) }}</p>
+                        @endif
+                    </dd>
+                </div>
             </dl>
         </div>
 

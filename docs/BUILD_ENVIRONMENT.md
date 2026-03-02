@@ -138,7 +138,58 @@ npm -v
 
 **실패 시**: 빌드 결과 페이지에 에러 메시지 표시.
 
-### 4.3 앱 아이콘 규격 (Android 공식)
+### 4.3 iMac에서 에뮬레이터로 테스트 (APK 다운로드·전송 없이)
+
+빌드 후 APK를 폰으로 옮기지 않고 **에뮬레이터에서 바로 실행**할 수 있다.
+
+**1) 에뮬레이터 준비 (최초 1회)**
+
+- Android Studio Welcome 화면 → **More Actions** (더보기) → **Virtual Device Manager**
+- 또는 프로젝트 열린 상태: **Tools > Device Manager**
+- **Create Device** (+) → 기기 선택 (예: Pixel 7) → **Next**
+- 시스템 이미지 선택 (예: API 36) → **Next** → **Finish**
+- 터미널 확인: `$ANDROID_HOME/emulator/emulator -list-avds`
+
+**2) 에뮬레이터 실행**
+
+```bash
+# AVD 목록 확인
+$ANDROID_HOME/emulator/emulator -list-avds
+
+# 에뮬레이터 실행 (이름은 위 목록에서 확인)
+$ANDROID_HOME/emulator/emulator -avd Pixel_7_API_34
+```
+
+또는 Android Studio에서 Device Manager → 해당 기기 옆 **▶ 재생** 버튼 클릭.
+
+**3) 빌드된 APK를 에뮬레이터에 설치**
+
+빌드 완료 후 결과 페이지에서 APK 경로를 확인하거나, 아래처럼 최신 빌드 폴더를 사용:
+
+```bash
+# webview-builder 프로젝트 기준
+cd /Users/awekers/Sites/www/webview-builder
+
+# 최신 빌드 ID 확인
+ls -t storage/app/builds/
+
+# APK 설치 (-e: 에뮬레이터, -t: 테스트 앱 허용)
+adb -e install -t storage/app/builds/<빌드ID>/app-release.apk
+```
+
+예: 빌드 ID가 `42`이고 워크스페이스가 www이면:
+```bash
+cd /Users/awekers/Sites/www/webview-builder
+adb -e install -t storage/app/builds/42/app-release.apk
+```
+
+**4) 앱 실행**
+
+에뮬레이터에서 앱 아이콘을 눌러 실행.
+
+> **참고**: `adb devices`로 연결된 기기 확인. 에뮬레이터만 있으면 `-e` 옵션으로 설치.
+
+### 4.4 앱 아이콘 규격 (Android 공식)
 
 1단계에서 업로드하는 앱 아이콘은 빌드 시 **자동 리사이징**됩니다.
 

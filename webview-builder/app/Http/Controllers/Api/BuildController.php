@@ -42,7 +42,7 @@ class BuildController extends Controller
         $validator = Validator::make($request->all(), [
             'step1' => ['required', 'array'],
             'step1.webUrl' => ['required', 'string', 'url'],
-            'step1.appType' => ['required', 'string', 'in:webview,hybrid'],
+            'step1.appType' => ['required', 'string', 'in:webview'],
             'step1.appIconPath' => ['required', 'string'],
             'step1.splashImagePath' => ['nullable', 'string'],
             'step2' => ['required', 'array'],
