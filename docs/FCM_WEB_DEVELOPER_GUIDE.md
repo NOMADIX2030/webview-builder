@@ -26,6 +26,7 @@
 | **알림 아이콘** | 1단계에서 업로드한 앱 아이콘에서 흰색 실루엣 생성 → 트레이에 앱 로고 표시 |
 | **헤드업 알림** | 푸시 수신 시 소리·진동과 함께 화면 상단에 알림 카드 표시 (실시간) |
 | **알림 탭 시 URL** | 2단계에서 설정한 키(`action_url` 등)로 `data`에 URL 포함 시, 탭하면 WebView에서 해당 URL 로드 (포그라운드·백그라운드 모두 지원) |
+| **Cold start 세션 복원** | 앱 전용 인증 토큰(app-token/app-login) 방식으로 앱 재시작 시에도 로그인 상태 유지 (섹션 6 참조) |
 | **패키지명 치환** | google-services.json의 패키지명을 1단계 패키지 ID로 자동 치환 (Firebase 등록 패키지와 달라도 빌드 성공) |
 
 ### 1.3 전체 흐름
@@ -316,6 +317,25 @@ pip install firebase-admin
 
 푸시 발송 시 `data` 페이로드에 해당 키로 URL을 포함하면, 사용자가 알림을 탭했을 때 WebView가 해당 URL을 로드합니다.
 
+**권장: data-only 메시지 (앱 내 WebView 보장)**
+
+`notification`+`data` 조합은 앱이 백그라운드일 때 Android가 알림을 처리하며, 일부 환경에서 클릭 시 외부 브라우저로 열릴 수 있습니다. **앱 내 WebView로 확실히 열리게 하려면 data-only 메시지를 사용하세요.**
+
+```json
+{
+  "data": {
+    "title": "알림 제목",
+    "body": "알림 내용",
+    "action_url": "https://example.com/notifications/123"
+  }
+}
+```
+
+- `title`, `body`: 알림에 표시할 제목·내용 (data에 포함)
+- `action_url`: 탭 시 WebView에 로드할 URL (앱 생성기 2단계에서 설정한 키와 일치)
+
+**대안: notification + data**
+
 ```json
 {
   "notification": { "title": "알림", "body": "새 메시지가 있습니다." },
@@ -323,13 +343,11 @@ pip install firebase-admin
 }
 ```
 
-키를 `url`, `link` 등으로 변경한 경우, 앱 생성기 2단계에서 동일한 키를 입력하세요.
-
-> **참고**: 앱이 포그라운드/백그라운드 모두에서 정상 동작합니다. FCM이 `notification`+`data`를 함께 보낼 때, 백그라운드에서는 FCM이 알림을 표시하고 탭 시 Intent에 `data` 키가 그대로 전달됩니다. 앱이 이를 처리해 WebView에 URL을 로드합니다.
+> **주의**: `notification` 객체에 `click_action`, `link`, `url` 등 URL 필드를 넣지 마세요. 외부 브라우저로 열릴 수 있습니다.
 
 ### 4.5 푸시 발송 코드 예시
 
-**Node.js (Firebase Admin SDK)**
+**Node.js (Firebase Admin SDK) — data-only (권장)**
 
 ```javascript
 const admin = require('firebase-admin');
@@ -337,42 +355,42 @@ const serviceAccount = require('./serviceAccountKey.json');
 
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 
-async function sendPushNotification(fcmToken, title, body, data = {}) {
+// data-only: 앱 내 WebView로 확실히 열림 (포그라운드·백그라운드 모두)
+async function sendPushNotification(fcmToken, title, body, actionUrl) {
   await admin.messaging().send({
     token: fcmToken,
-    notification: {
+    data: {
       title: title,
       body: body,
+      action_url: actionUrl,
     },
-    data: data,  // 클릭 시 활용할 추가 데이터
-    android: {
-      priority: 'high',
-    },
+    android: { priority: 'high' },
   });
 }
 
-// 사용 예 (action_url은 앱 생성기 2단계에서 설정한 키와 일치해야 함)
 await sendPushNotification(
   '사용자_FCM_토큰',
   '알림 제목',
   '알림 내용',
-  { action_url: 'https://example.com/notifications' }
+  'https://example.com/notifications'
 );
 ```
 
-**PHP (kreait/firebase-php)**
+**PHP (kreait/firebase-php) — data-only**
 
 ```php
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\CloudMessage;
-use Kreait\Firebase\Messaging\Notification;
 
 $factory = (new Factory)->withServiceAccount('/path/to/serviceAccountKey.json');
 $messaging = $factory->createMessaging();
 
 $message = CloudMessage::withTarget('token', $fcmToken)
-    ->withNotification(Notification::create($title, $body))
-    ->withData($data);
+    ->withData([
+        'title' => '알림 제목',
+        'body' => '알림 내용',
+        'action_url' => 'https://example.com/notifications',
+    ]);
 
 $messaging->send($message);
 ```
@@ -400,7 +418,82 @@ $messaging->send($message);
 
 ---
 
-## 6. 체크리스트
+## 6. Cold start 세션 복원 (앱 전용 인증 토큰)
+
+> **문제**: FCM 알림 클릭 시 앱이 cold start되면 WebView 쿠키가 유지되지 않아 로그인 페이지가 표시될 수 있습니다.  
+> **해결**: 앱 전용 인증 토큰을 SharedPreferences에 저장하고, FCM 클릭 시 토큰으로 세션을 복원합니다.
+
+### 6.1 서버에서 구현할 내용
+
+#### 1) 로그인 완료 시 — app-token 리다이렉트
+
+사용자가 웹 로그인(카카오/네이버/이메일 등)을 완료하면, 서버가 다음 형태로 리다이렉트합니다.
+
+```
+https://yoursite.com/auth/app-token?token={64자_랜덤_토큰}&redirect={이동할_경로}
+```
+
+| 파라미터 | 설명 |
+|----------|------|
+| `token` | 64자 랜덤 토큰. 30일 유효. 앱이 SharedPreferences에 저장 |
+| `redirect` | 로그인 후 이동할 경로 (예: `/`, `/chat`) |
+
+**앱 동작**: WebView가 위 URL을 로드할 때, 앱이 URL을 가로채 `token`을 추출해 저장하고 `redirect` 경로로 이동합니다.
+
+#### 2) FCM 클릭 시 — app-login (토큰 있음)
+
+앱에 저장된 토큰이 있으면, 앱이 아래 URL을 로드합니다.
+
+```
+https://yoursite.com/auth/app-login?token={저장된_토큰}&redirect={목적지_URL}
+```
+
+| 파라미터 | 설명 |
+|----------|------|
+| `token` | 로그인 시 저장한 토큰 |
+| `redirect` | **URL 인코딩 필수**. 로그인 처리 후 이동할 경로 (예: `/chat?conversation=123`) |
+
+**서버 동작**:
+1. 토큰 검증
+2. 세션 생성
+3. `redirect` 경로로 리다이렉트
+4. **새 토큰 발급** — `app-login` 성공 시 `/auth/app-token?token=NEW&redirect=...` 형태로 리다이렉트하여 앱이 새 토큰을 저장 (매 cold start마다 재로그인 불필요)
+5. 토큰은 1회 사용 후 삭제 (재사용 불가)
+
+**redirect 인코딩 예시**:
+- 원본: `/chat?conversation=123`
+- 인코딩: `%2Fchat%3Fconversation%3D123`
+
+#### 3) FCM 클릭 시 — 토큰 없음
+
+저장된 토큰이 없으면 앱이 `/login?redirect={목적지}` 를 로드합니다.
+
+### 6.2 FCM data 페이로드 예시
+
+```json
+{
+  "data": {
+    "title": "새 메시지",
+    "body": "채팅 메시지가 도착했습니다.",
+    "action_url": "/chat?conversation=123"
+  }
+}
+```
+
+- `action_url`이 상대 경로(`/chat?conversation=123`) 또는 전체 URL 모두 지원됩니다.
+- 앱이 `redirect` 파라미터를 **반드시 URL 인코딩**하여 전달합니다.
+
+### 6.3 플로우 요약
+
+| 상황 | 앱 동작 |
+|------|---------|
+| 로그인 완료 | `/auth/app-token?token=...` URL에서 token 추출 후 저장 |
+| FCM 클릭 (토큰 있음) | `/auth/app-login?token=...&redirect=...` 로드 |
+| FCM 클릭 (토큰 없음) | `/login?redirect=...` 로드 |
+
+---
+
+## 7. 체크리스트
 
 앱 생성기 사용 전/후로 아래를 확인하세요.
 
@@ -424,9 +517,14 @@ $messaging->send($message);
 - [ ] 서비스 계정 키 보관
 - [ ] 푸시 발송 로직 구현
 
+### Cold start 세션 복원 (선택, 권장)
+
+- [ ] 로그인 완료 시 `/auth/app-token?token=...&redirect=...` 리다이렉트
+- [ ] `/auth/app-login` 엔드포인트: 토큰 검증 → 세션 생성 → redirect 이동 → 새 토큰 발급
+
 ---
 
-## 7. 참고
+## 8. 참고
 
 - [Firebase Cloud Messaging 문서](https://firebase.google.com/docs/cloud-messaging)
 - [FCM HTTP v1 API](https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages)

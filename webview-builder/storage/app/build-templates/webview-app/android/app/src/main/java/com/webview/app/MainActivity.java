@@ -6,6 +6,8 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.webkit.CookieManager;
+import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -28,6 +30,7 @@ public class MainActivity extends BridgeActivity {
     private long lastBackPressTime = 0;
     private boolean oauthClientInstalled = false;
     private boolean downloadListenerInstalled = false;
+    private boolean chromeClientInstalled = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,6 +91,12 @@ public class MainActivity extends BridgeActivity {
         super.onResume();
         installWebViewHandlers();
         {{FCM_RESUME_HANDLER}}
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        CookieManager.getInstance().flush();
     }
 
     @Override
@@ -153,6 +162,12 @@ public class MainActivity extends BridgeActivity {
         settings.setUseWideViewPort(true);
         settings.setLoadWithOverviewMode(true);
 
+        CookieManager cm = CookieManager.getInstance();
+        cm.setAcceptCookie(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            cm.setAcceptThirdPartyCookies(webView, true);
+        }
+
         if (!downloadListenerInstalled) {
             webView.addJavascriptInterface(new DownloadBridge(this), "AndroidBridge");
             webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
@@ -177,6 +192,14 @@ public class MainActivity extends BridgeActivity {
             }
             webView.setWebViewClient(new OAuthWebViewClient(currentClient));
             oauthClientInstalled = true;
+        }
+
+        if (!chromeClientInstalled) {
+            settings.setSupportMultipleWindows(true);
+            settings.setJavaScriptCanOpenWindowsAutomatically(true);
+            WebChromeClient current = webView.getWebChromeClient();
+            webView.setWebChromeClient(new OnCreateWindowWebChromeClient(current));
+            chromeClientInstalled = true;
         }
     }
 

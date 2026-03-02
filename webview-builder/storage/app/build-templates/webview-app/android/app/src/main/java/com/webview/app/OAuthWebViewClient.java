@@ -1,6 +1,9 @@
 package com.webview.app;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.net.Uri;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -39,6 +42,13 @@ public class OAuthWebViewClient extends WebViewClient {
         Pattern.compile("^https?://(?:appleid\\.apple\\.com|apple\\.com/auth)/", Pattern.CASE_INSENSITIVE),
     };
 
+    /** 앱 서버 도메인: FCM/채팅 등 동일 도메인 URL을 WebView 내에서 로드 (브라우저 이탈 방지). 빌드 시 주입. */
+    private static final Pattern APP_DOMAIN_PATTERN = {{APP_DOMAIN_PATTERN}};
+
+    /** 앱 전용 인증 토큰 저장 키. cold start 시 세션 복원용. */
+    private static final String PREFS_AUTH_TOKEN = "app_auth_token";
+    private static final String APP_BASE_URL = "{{APP_BASE_URL}}";
+
     private final WebViewClient delegate;
 
     public OAuthWebViewClient(WebViewClient delegate) {
@@ -53,11 +63,34 @@ public class OAuthWebViewClient extends WebViewClient {
         return false;
     }
 
+    /** 앱 서버 도메인 URL이면 WebView 내에서 로드 (카카오 OAuth와 동일한 방식). */
+    private static boolean isAppDomainUrl(String url) {
+        if (url == null || url.isEmpty() || APP_DOMAIN_PATTERN == null) return false;
+        return APP_DOMAIN_PATTERN.matcher(url).find();
+    }
+
+    /** /auth/app-token?token=... URL에서 토큰 추출 후 저장, redirect로 이동. */
+    private static boolean handleAppTokenUrl(WebView view, String url) {
+        if (url == null || !url.contains("/auth/app-token")) return false;
+        Uri uri = Uri.parse(url);
+        String token = uri.getQueryParameter("token");
+        String redirect = uri.getQueryParameter("redirect");
+        if (token == null || token.isEmpty()) return false;
+        Context ctx = view.getContext().getApplicationContext();
+        ctx.getSharedPreferences("webview_app", Context.MODE_PRIVATE).edit().putString(PREFS_AUTH_TOKEN, token).apply();
+        String loadUrl = (redirect != null && !redirect.isEmpty())
+            ? (redirect.startsWith("http") ? redirect : (APP_BASE_URL + (redirect.startsWith("/") ? redirect : "/" + redirect)))
+            : APP_BASE_URL + "/";
+        view.loadUrl(loadUrl);
+        return true;
+    }
+
     @Override
     @SuppressLint("NewApi")
     public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
         String url = request.getUrl() != null ? request.getUrl().toString() : null;
-        if (isOAuthUrl(url)) {
+        if (handleAppTokenUrl(view, url)) return true;
+        if (isOAuthUrl(url) || isAppDomainUrl(url)) {
             view.loadUrl(url);
             return true;
         }
@@ -70,7 +103,8 @@ public class OAuthWebViewClient extends WebViewClient {
     @Override
     @SuppressWarnings("deprecation")
     public boolean shouldOverrideUrlLoading(WebView view, String url) {
-        if (isOAuthUrl(url)) {
+        if (handleAppTokenUrl(view, url)) return true;
+        if (isOAuthUrl(url) || isAppDomainUrl(url)) {
             view.loadUrl(url);
             return true;
         }

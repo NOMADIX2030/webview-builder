@@ -43,19 +43,22 @@
 | **Deploy 키** | `~/.ssh/deploy_webview-builder` |
 | **클론** | `git clone git@github-webview-builder:NOMADIX2030/webview-builder.git` |
 
-### 완료 상태 (2026-02-27)
+### 완료 상태 (2026-03-02)
 
 - 웹뷰 APK 빌드: 1~3단계 완성, 2~5분 동기 실행
 - 앱 아이콘: @capacitor/assets 1차, PHP GD 폴백
 - 아이콘 미리보기: 실제와 90% 이상 동일 (rounded-[22%], object-cover, bg-white) — 검증 완료
 - 뒤로가기: OnBackPressedCallback → webView.canGoBack() 시 goBack() → 루트에서 2회 연속 시 종료 (알림 없음) — 검증 완료
 - OAuth/소셜 로그인: OAuthWebViewClient로 카카오·구글·네이버 등 OAuth URL을 WebView 내 로드 (외부 브라우저 이탈 방지) — 카카오 로그인 검증 완료
-- **FCM 푸시**: google-services.json 패키지명 자동 치환, 앱 로고 알림 아이콘, 헤드업 알림, 알림 탭 시 URL 로드 (포그라운드·백그라운드 모두 정상 동작)
+- **FCM 푸시**: 전체 정상 동작 — 토큰 전달, 앱 로고 알림 아이콘, 헤드업, 알림 탭 시 URL 로드 (포그라운드·백그라운드·cold start 모두)
+- **Cold start 세션 복원**: 앱 전용 인증 토큰(app-token/app-login) 방식으로 앱 재시작 시에도 로그인 유지
+- **앱 도메인 URL 처리**: OAuthWebViewClient에서 앱 서버 도메인 URL도 WebView 내 로드 (브라우저 이탈 방지)
+- **window.open 처리**: WebChromeClient.onCreateWindow로 target="_blank" 시 부모 WebView에 로드
 
-### 최근 작업 (2026-02-28)
+### 최근 작업 (2026-03-02)
 
-- **FCM 푸시**: 전체 정상 동작 검증 완료 — 패키지명 치환, 앱 로고 알림 아이콘, 헤드업, 알림 탭 시 action_url → WebView.loadUrl (백그라운드 Intent 처리 포함)
-- **FCM 가이드**: FCM_WEB_DEVELOPER_GUIDE.md 웹 개발자용 상세 안내 (토큰 수신, SPA 예시, FAQ)
+- **FCM 알림 기능**: 전체 정상 동작 검증 완료 — cold start 세션 복원(app-token/app-login), redirect URL 인코딩, 채팅방 정확 이동
+- **FCM 가이드**: FCM_WEB_DEVELOPER_GUIDE.md 웹 개발자용 상세 안내 (토큰 수신, SPA 예시, app-token/app-login 섹션 추가)
 - OAuth/소셜 로그인: 카카오 로그인 인앱 처리 (검증 완료)
 - Laravel Blade 마이그레이션, 뒤로가기, EMFILE 해결, 다운로드 X-Accel-Redirect
 - sudo: AGENTS.md 섹션 7 참조

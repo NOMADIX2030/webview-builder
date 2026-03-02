@@ -128,6 +128,7 @@ class CapacitorBuildService
         }
 
         $this->injectConfig($projectPath, $build);
+        $this->injectAppDomainToOAuthWebViewClient($projectPath, $build);
         $this->injectExtraPermissions($projectPath, $build);
         $this->copyGoogleServicesJson($projectPath, $build);
         $this->injectFcmConfig($projectPath, $build);
@@ -185,6 +186,41 @@ class CapacitorBuildService
             $content = preg_replace('/<string name="title_activity_main">[^<]+<\/string>/', '<string name="title_activity_main">' . htmlspecialchars($build->app_name, ENT_XML1) . '</string>', $content);
             File::put($stringsPath, $content);
         }
+    }
+
+    /**
+     * 앱 서버 도메인(web_url) URL을 WebView 내에서 로드하도록 OAuthWebViewClient에 패턴 주입.
+     * FCM 채팅 등 동일 도메인 URL이 브라우저로 열리는 것 방지 (카카오 OAuth와 동일한 방식).
+     */
+    private function injectAppDomainToOAuthWebViewClient(string $projectPath, Build $build): void
+    {
+        $path = "{$projectPath}/android/app/src/main/java/com/webview/app/OAuthWebViewClient.java";
+        if (! File::exists($path)) {
+            return;
+        }
+        $host = parse_url($build->web_url, PHP_URL_HOST);
+        $pattern = 'null';
+        if ($host && preg_match('/^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]$/', $host)) {
+            $escaped = str_replace('\\', '\\\\', preg_quote($host, '/'));
+            $pattern = 'Pattern.compile("^https?://([^/]*\\\\.)?' . $escaped . '(/.*)?", Pattern.CASE_INSENSITIVE)';
+        }
+        $baseUrl = $this->getAppBaseUrl($build->web_url);
+        $content = File::get($path);
+        $content = str_replace('{{APP_DOMAIN_PATTERN}}', $pattern, $content);
+        $content = str_replace('{{APP_BASE_URL}}', addslashes($baseUrl), $content);
+        File::put($path, $content);
+    }
+
+    private function getAppBaseUrl(string $webUrl): string
+    {
+        $scheme = parse_url($webUrl, PHP_URL_SCHEME) ?: 'https';
+        $host = parse_url($webUrl, PHP_URL_HOST) ?: '';
+        $port = parse_url($webUrl, PHP_URL_PORT);
+        $base = $scheme . '://' . $host;
+        if ($port && $port !== ($scheme === 'https' ? 443 : 80)) {
+            $base .= ':' . $port;
+        }
+        return rtrim($base, '/');
     }
 
     /**
@@ -348,7 +384,8 @@ class CapacitorBuildService
         $content = str_replace('{{FCM_INIT_BLOCK}}', $enabled ? $this->getFcmInitBlock() : '// FCM disabled', $content);
         $content = str_replace('{{FCM_TOKEN_TO_WEB_BLOCK}}', $enabled ? $this->getFcmTokenToWebBlock() : '// FCM disabled', $content);
         $content = str_replace('{{FCM_RESUME_HANDLER}}', $enabled ? 'handleFcmClickUrl();' : '', $content);
-        $content = str_replace('{{FCM_CLICK_HANDLER}}', $enabled ? $this->getFcmClickHandlerBlock($clickKey) : '// FCM disabled', $content);
+        $baseUrl = $enabled ? $this->getAppBaseUrl($build->web_url) : '';
+        $content = str_replace('{{FCM_CLICK_HANDLER}}', $enabled ? $this->getFcmClickHandlerBlock($clickKey, $baseUrl) : '// FCM disabled', $content);
         File::put($path, $content);
     }
 
@@ -356,6 +393,7 @@ class CapacitorBuildService
     {
         return <<<'JAVA'
         initFcmAndPassTokenToWeb();
+        handleFcmClickUrl();
 JAVA;
     }
 
@@ -393,12 +431,18 @@ JAVA;
 JAVA;
     }
 
-    private function getFcmClickHandlerBlock(string $dataKey): string
+    private function getFcmClickHandlerBlock(string $dataKey, string $baseUrl): string
     {
         $key = addslashes($dataKey);
+        $base = addslashes($baseUrl);
+        $charset = 'UTF-8';
         return <<<JAVA
 
     private static final String FCM_DATA_KEY = "{$key}";
+    private static final String APP_BASE_URL = "{$base}";
+    private static final String PREFS_AUTH_TOKEN = "app_auth_token";
+    private static final int FCM_CLICK_RETRY_DELAY_MS = 150;
+    private static final int FCM_CLICK_RETRY_MAX = 20;
 
     @Override
     protected void onNewIntent(Intent intent) {
@@ -408,17 +452,38 @@ JAVA;
     }
 
     private void handleFcmClickUrl() {
+        handleFcmClickUrlWithRetry(0);
+    }
+
+    private void handleFcmClickUrlWithRetry(int attempt) {
         Intent i = getIntent();
         if (i == null) return;
-        String url = i.getStringExtra("fcm_click_url");
-        if (url == null || url.isEmpty()) url = i.getStringExtra(FCM_DATA_KEY);
-        if (url == null || url.isEmpty()) return;
-        i.removeExtra("fcm_click_url");
-        i.removeExtra(FCM_DATA_KEY);
+        String actionUrl = i.getStringExtra("fcm_click_url");
+        if (actionUrl == null || actionUrl.isEmpty()) actionUrl = i.getStringExtra(FCM_DATA_KEY);
+        if (actionUrl == null || actionUrl.isEmpty()) return;
         Bridge b = getBridge();
-        if (b != null) {
-            android.webkit.WebView wv = b.getWebView();
-            if (wv != null) wv.loadUrl(url);
+        android.webkit.WebView wv = b != null ? b.getWebView() : null;
+        if (wv != null) {
+            i.removeExtra("fcm_click_url");
+            i.removeExtra(FCM_DATA_KEY);
+            String redirect = actionUrl.startsWith("http") ? actionUrl : (actionUrl.startsWith("/") ? actionUrl : "/" + actionUrl);
+            String loadUrl;
+            String token = getSharedPreferences("webview_app", MODE_PRIVATE).getString(PREFS_AUTH_TOKEN, null);
+            try {
+                String encRedirect = java.net.URLEncoder.encode(redirect, "{$charset}");
+                if (token != null && !token.isEmpty()) {
+                    loadUrl = APP_BASE_URL + "/auth/app-login?token=" + java.net.URLEncoder.encode(token, "{$charset}") + "&redirect=" + encRedirect;
+                } else {
+                    loadUrl = APP_BASE_URL + "/login?redirect=" + encRedirect;
+                }
+            } catch (java.io.UnsupportedEncodingException e) {
+                loadUrl = APP_BASE_URL + redirect;
+            }
+            wv.loadUrl(loadUrl);
+            return;
+        }
+        if (attempt < FCM_CLICK_RETRY_MAX) {
+            getWindow().getDecorView().postDelayed(() -> handleFcmClickUrlWithRetry(attempt + 1), FCM_CLICK_RETRY_DELAY_MS);
         }
     }
 JAVA;
@@ -478,23 +543,33 @@ public class AppFirebaseMessagingService extends FirebaseMessagingService {
 
     @Override
     public void onMessageReceived(RemoteMessage message) {
+        java.util.Map<String, String> data = message.getData();
+        String title = "알림";
+        String body = "";
+        String url = data != null && data.containsKey(CLICK_URL_KEY) ? data.get(CLICK_URL_KEY) : null;
+
         if (message.getNotification() != null) {
+            title = message.getNotification().getTitle() != null ? message.getNotification().getTitle() : title;
+            body = message.getNotification().getBody() != null ? message.getNotification().getBody() : body;
+        } else if (data != null) {
+            if (data.containsKey("title")) title = data.get("title");
+            if (data.containsKey("body")) body = data.get("body");
+        }
+
+        boolean shouldNotify = message.getNotification() != null || (url != null && !url.isEmpty());
+        if (shouldNotify) {
             createNotificationChannel();
             NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
             Intent i = new Intent(this, MainActivity.class);
             i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            java.util.Map<String, String> data = message.getData();
-            if (data != null && data.containsKey(CLICK_URL_KEY)) {
-                String url = data.get(CLICK_URL_KEY);
-                if (url != null && !url.isEmpty()) {
-                    i.putExtra("fcm_click_url", url);
-                }
+            if (url != null && !url.isEmpty()) {
+                i.putExtra("fcm_click_url", url);
             }
             PendingIntent pi = PendingIntent.getActivity(this, 0, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             NotificationCompat.Builder b = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_ic_notification)
-                .setContentTitle(message.getNotification().getTitle() != null ? message.getNotification().getTitle() : "알림")
-                .setContentText(message.getNotification().getBody() != null ? message.getNotification().getBody() : "")
+                .setContentTitle(title != null ? title : "알림")
+                .setContentText(body != null ? body : "")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setDefaults(NotificationCompat.DEFAULT_ALL)
                 .setContentIntent(pi)

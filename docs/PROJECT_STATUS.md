@@ -1,6 +1,6 @@
 # 프로젝트 현황
 
-> **최종 업데이트**: 2026년 2월 27일 (FCM 푸시 전체 정상 동작 검증 완료)
+> **최종 업데이트**: 2026년 3월 2일 (FCM 푸시 알림 기능 전체 정상 동작 검증 완료)
 
 ---
 
@@ -32,6 +32,8 @@
 | **아이콘 미리보기** | `rounded-[22%]` (스쿼시클), `object-cover`, `bg-white` | 실제 APK와 90% 이상 일치 (검증 완료) |
 | **뒤로가기** | `goBack()` → 서브 경로면 origin 이동 → 루트에서 뒤로가기 2회 연속 시 종료 (알림 없음, 2초 이내) | 앱 내 이전 페이지 이동 + 이중 클릭 종료 |
 | **OAuth/소셜 로그인** | 카카오·구글·네이버 등 OAuth URL을 WebView 내에서 로드 (외부 브라우저 이탈 방지) | API 26+ 적용, 카카오 로그인 검증 완료 |
+| **앱 도메인 URL** | OAuthWebViewClient에서 앱 서버 도메인(web_url) URL도 WebView 내 로드 | FCM 채팅 등 동일 도메인 링크가 브라우저로 열리지 않음 |
+| **window.open 처리** | WebChromeClient.onCreateWindow로 target="_blank" 시 부모 WebView에 로드 | 외부 브라우저 이탈 방지 |
 | **PDF/이미지 저장** | DownloadListener → PDF는 Downloads, 이미지는 Pictures(갤러리). blob URL: 훅+이중전략+클릭가로채기 (optiflow 등) | WRITE_EXTERNAL_STORAGE, READ_MEDIA_IMAGES (API 33+) |
 | **아이콘 생성** | `@capacitor/assets` 1차 시도, 실패 시 PHP GD 폴백 | `npx @capacitor/assets generate --android` |
 | **다운로드** | `<a download>` + 상대 경로 → Laravel X-Accel-Redirect → nginx internal location | PHP 버퍼 없음, 전체 파일 |
@@ -41,8 +43,10 @@
 | **알림 아이콘** | 앱 아이콘에서 흰색 실루엣 자동 생성 → 트레이에 앱 로고 표시 | FCM 사용 + 앱 아이콘 업로드 시 |
 | **헤드업 알림** | IMPORTANCE_HIGH, PRIORITY_HIGH → 소리·진동·화면 상단 실시간 알림 카드 | Android 5.0+ |
 | **알림 탭 시 URL** | 포그라운드: fcm_click_url / 백그라운드: data 키(action_url) → WebView.loadUrl | FCM notification+data 시 백그라운드 Intent 처리 |
+| **Cold start 세션 복원** | 앱 전용 인증 토큰(app-token/app-login) → SharedPreferences 저장, FCM 클릭 시 세션 복원 | 앱 재시작 후에도 로그인 유지 |
+| **redirect URL 인코딩** | FCM 클릭 시 action_url을 URL 인코딩하여 app-login/login에 전달 | `/chat?conversation=123` 등 쿼리 파라미터 정확 전달 |
 
-### 1.3 FCM 푸시 검증 완료 (2026-02-27)
+### 1.3 FCM 푸시 검증 완료 (2026-03-02)
 
 | 항목 | 상태 |
 |------|------|
@@ -51,6 +55,9 @@
 | 헤드업 알림 (소리·진동·화면 상단) | ✅ |
 | 알림 탭 시 URL 로드 (포그라운드) | ✅ |
 | 알림 탭 시 URL 로드 (백그라운드) | ✅ |
+| Cold start 시 URL 로드 (앱 완전 종료 후) | ✅ |
+| Cold start 세션 복원 (app-token/app-login) | ✅ |
+| 채팅방 URL 정확 이동 (redirect 인코딩) | ✅ |
 
 ### 1.4 알려진 이슈
 
