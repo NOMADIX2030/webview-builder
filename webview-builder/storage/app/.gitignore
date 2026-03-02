@@ -3,8 +3,11 @@
 !build-templates/
 !build-templates/**
 !builds/
+!builds/.gitkeep
 !private/
+!private/.gitignore
 !public/
+!public/.gitignore
 !.gitignore
 # build-templates 내 제외
 build-templates/**/.DS_Store
