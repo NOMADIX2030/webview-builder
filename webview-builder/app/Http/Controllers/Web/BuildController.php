@@ -65,6 +65,9 @@ class BuildController extends Controller
             'version_name' => $generated['versionName'],
             'version_code' => $generated['versionCode'],
             'extra_permissions' => [],
+            'fcm_enabled' => false,
+            'google_services_path' => null,
+            'fcm_click_url_key' => 'action_url',
         ]);
 
         return view('step2', [
@@ -80,7 +83,7 @@ class BuildController extends Controller
             return redirect()->route('build.step1');
         }
 
-        $validated = $request->validate([
+        $rules = [
             'app_name' => ['required', 'string', 'max:255'],
             'package_id' => ['required', 'string', 'max:255'],
             'privacy_policy_url' => ['required', 'url'],
@@ -89,10 +92,37 @@ class BuildController extends Controller
             'version_code' => ['required', 'integer', 'min:1'],
             'extra_permissions' => ['nullable', 'array'],
             'extra_permissions.*' => ['string', 'in:CAMERA,RECORD_AUDIO,READ_CONTACTS,WRITE_CONTACTS,CALL_PHONE,READ_CALENDAR,WRITE_CALENDAR,SEND_SMS,RECEIVE_SMS,BLUETOOTH_CONNECT'],
-        ]);
+            'fcm_enabled' => ['nullable'],
+        ];
+        $prevStep2 = session('build_step2', []);
+        $fcmEnabled = $request->boolean('fcm_enabled');
+        $hasNewFile = $request->hasFile('google_services_json');
+        $hasPrevPath = ! empty($prevStep2['google_services_path']);
+        if ($fcmEnabled && ! $hasNewFile && ! $hasPrevPath) {
+            $rules['google_services_json'] = ['required', 'file', 'mimes:json', 'max:1024'];
+        } elseif ($fcmEnabled && $hasNewFile) {
+            $rules['google_services_json'] = ['required', 'file', 'mimes:json', 'max:1024'];
+        }
+        $validated = $request->validate($rules);
 
         $validated['extra_permissions'] = $validated['extra_permissions'] ?? [];
+        $validated['fcm_enabled'] = $fcmEnabled;
+        $validated['google_services_path'] = null;
+        $validated['fcm_click_url_key'] = $request->filled('fcm_click_url_key')
+            ? preg_replace('/[^a-zA-Z0-9_-]/', '', $request->input('fcm_click_url_key'))
+            : 'action_url';
+        if (empty($validated['fcm_click_url_key'])) {
+            $validated['fcm_click_url_key'] = 'action_url';
+        }
+        if ($validated['fcm_enabled']) {
+            if ($hasNewFile) {
+                $validated['google_services_path'] = $request->file('google_services_json')->store('uploads/' . Str::random(8), 'public');
+            } elseif ($hasPrevPath) {
+                $validated['google_services_path'] = $prevStep2['google_services_path'];
+            }
+        }
 
+        unset($validated['google_services_json']);
         session(['build_step2' => $validated]);
 
         return redirect()->route('build.step3');
@@ -136,6 +166,9 @@ class BuildController extends Controller
             'splash_image_path' => $step1['splash_image_path'],
             'config_json' => [
                 'extra_permissions' => $step2['extra_permissions'] ?? [],
+                'fcm_enabled' => $step2['fcm_enabled'] ?? false,
+                'google_services_path' => $step2['google_services_path'] ?? null,
+                'fcm_click_url_key' => $step2['fcm_click_url_key'] ?? 'action_url',
             ],
         ]);
 

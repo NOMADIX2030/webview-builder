@@ -80,6 +80,9 @@
                             @endphp
                             <p class="mt-1">추가: {{ implode(', ', array_map(fn($p) => $labels[$p] ?? $p, $step2['extra_permissions'])) }}</p>
                         @endif
+                        @if(!empty($step2['fcm_enabled'] ?? false))
+                            <p class="mt-1">푸시: FCM 사용 (탭 시 URL 키: {{ $step2['fcm_click_url_key'] ?? 'action_url' }})</p>
+                        @endif
                     </dd>
                 </div>
             </dl>

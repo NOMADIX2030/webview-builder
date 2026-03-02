@@ -1,6 +1,6 @@
 # 프로젝트 현황
 
-> **최종 업데이트**: 2026년 2월 27일 (카카오 로그인 검증 완료)
+> **최종 업데이트**: 2026년 2월 27일 (FCM 푸시 전체 정상 동작 검증 완료)
 
 ---
 
@@ -20,7 +20,7 @@
 | 구분 | 내용 |
 |------|------|
 | **1단계** | 웹 URL, 앱 아이콘(512×512 권장), 스플래시 업로드 |
-| **2단계** | 도메인 기반 자동 생성값(앱 이름, 패키지 ID 등) 확인·수정 |
+| **2단계** | 도메인 기반 자동 생성값(앱 이름, 패키지 ID 등) 확인·수정, FCM 푸시(google-services.json) 선택 |
 | **3단계** | 모바일 시뮬레이션, APK 적용 아이콘 미리보기, 빌드 요청 |
 | **빌드** | Capacitor 템플릿, @capacitor/assets 아이콘 생성(PHP GD 폴백), Android APK, Keystore 자동 생성 (동기 실행, 2~5분) |
 | **다운로드** | APK, Keystore 다운로드 (X-Accel-Redirect → nginx 직접 서빙) |
@@ -36,8 +36,23 @@
 | **아이콘 생성** | `@capacitor/assets` 1차 시도, 실패 시 PHP GD 폴백 | `npx @capacitor/assets generate --android` |
 | **다운로드** | `<a download>` + 상대 경로 → Laravel X-Accel-Redirect → nginx internal location | PHP 버퍼 없음, 전체 파일 |
 | **빌드 템플릿** | `node_modules` 복사 후 삭제 → `npm install`로 새로 생성 | 깨진 심볼릭 링크로 copy 실패 방지 |
+| **FCM 푸시** | 2단계에서 google-services.json 업로드 → 앱에 FCM 포함. `window.onFcmTokenReady(token)` 웹 연동 | 웹에서 토큰 수신 후 서버 등록, FCM API로 발송 |
+| **google-services.json** | 빌드 시 패키지명 자동 치환 (1단계 패키지 ID와 불일치해도 빌드 성공) | CapacitorBuildService |
+| **알림 아이콘** | 앱 아이콘에서 흰색 실루엣 자동 생성 → 트레이에 앱 로고 표시 | FCM 사용 + 앱 아이콘 업로드 시 |
+| **헤드업 알림** | IMPORTANCE_HIGH, PRIORITY_HIGH → 소리·진동·화면 상단 실시간 알림 카드 | Android 5.0+ |
+| **알림 탭 시 URL** | 포그라운드: fcm_click_url / 백그라운드: data 키(action_url) → WebView.loadUrl | FCM notification+data 시 백그라운드 Intent 처리 |
 
-### 1.3 알려진 이슈
+### 1.3 FCM 푸시 검증 완료 (2026-02-27)
+
+| 항목 | 상태 |
+|------|------|
+| 토큰 발급 → 웹 전달 | ✅ |
+| 트레이 알림 아이콘 (앱 로고) | ✅ |
+| 헤드업 알림 (소리·진동·화면 상단) | ✅ |
+| 알림 탭 시 URL 로드 (포그라운드) | ✅ |
+| 알림 탭 시 URL 로드 (백그라운드) | ✅ |
+
+### 1.4 알려진 이슈
 
 | 이슈 | 설명 | 우선순위 |
 |------|------|----------|
@@ -50,7 +65,7 @@
 | 순서 | 작업 | 비고 |
 |------|------|------|
 | 1 | 웹뷰 아이콘 및 추가 사항 테스트 | 3단계 미리보기 비율·여백 등 |
-| 2 | 하이브리드 앱 빌드로 확장 | 푸시, 네이티브 기능 등 |
+| 2 | 하이브리드 앱 빌드로 확장 | iOS IPA, 네이티브 기능 등 |
 
 ---
 
@@ -63,3 +78,4 @@
 | ENVIRONMENT_SETUP.md | nginx, 로컬 실행 방식 |
 | DATABASE.md | 데이터베이스 테이블 |
 | CAPACITOR_LEARNING.md | Capacitor 기능, 플러그인, iOS 확장 참고 |
+| FCM_WEB_DEVELOPER_GUIDE.md | **고객용** FCM 푸시 연동 가이드 (웹 개발자 요구사항) |

@@ -7,12 +7,12 @@
 
 ## 1. 필요 사항 요약
 
-| 도구 | 용도 | 필수 |
-|------|------|------|
-| **Java JDK 17** | Gradle, keytool | ✅ |
-| **Android SDK** | Android APK 빌드 | ✅ |
-| **keytool** | Keystore 생성 (JDK 포함) | ✅ |
-| **Node.js** | npm, Capacitor CLI | ✅ (프론트엔드에 이미 설치) |
+| 도구            | 용도                     | 필수                        |
+| --------------- | ------------------------ | --------------------------- |
+| **Java JDK 17** | Gradle, keytool          | ✅                          |
+| **Android SDK** | Android APK 빌드         | ✅                          |
+| **keytool**     | Keystore 생성 (JDK 포함) | ✅                          |
+| **Node.js**     | npm, Capacitor CLI       | ✅ (프론트엔드에 이미 설치) |
 
 ---
 
@@ -39,6 +39,7 @@ source ~/.zshrc
 ```
 
 **검증**:
+
 ```bash
 java -version
 # openjdk version "17.x.x" ...
@@ -85,6 +86,7 @@ export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
 ```
 
 **Android Studio 미설치 시** (commandlinetools만 사용):
+
 ```bash
 # Apple Silicon
 export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
@@ -178,6 +180,7 @@ adb -e install -t storage/app/builds/<빌드ID>/app-release.apk
 ```
 
 예: 빌드 ID가 `42`이고 워크스페이스가 www이면:
+
 ```bash
 cd /Users/awekers/Sites/www/webview-builder
 adb -e install -t storage/app/builds/42/app-release.apk
@@ -193,10 +196,10 @@ adb -e install -t storage/app/builds/42/app-release.apk
 
 1단계에서 업로드하는 앱 아이콘은 빌드 시 **자동 리사이징**됩니다.
 
-| 용도 | mdpi | hdpi | xhdpi | xxhdpi | xxxhdpi |
-|------|------|------|-------|--------|---------|
-| Legacy (ic_launcher) | 48px | 72px | 96px | 144px | 192px |
-| Adaptive foreground (API 26+) | 108px | 162px | 216px | 324px | 432px |
+| 용도                          | mdpi  | hdpi  | xhdpi | xxhdpi | xxxhdpi |
+| ----------------------------- | ----- | ----- | ----- | ------ | ------- |
+| Legacy (ic_launcher)          | 48px  | 72px  | 96px  | 144px  | 192px   |
+| Adaptive foreground (API 26+) | 108px | 162px | 216px | 324px  | 432px   |
 
 **권장 업로드**: 512×512 px 이상 (1024×1024 권장), PNG/JPEG/WebP, 정사각형
 
@@ -206,14 +209,14 @@ adb -e install -t storage/app/builds/42/app-release.apk
 
 ## 5. 문제 해결
 
-| 증상 | 원인 | 해결 |
-|------|------|------|
-| `java: command not found` | Java 미설치 또는 PATH 미설정 | 2.2 절차 수행 |
-| `keytool: command not found` | JDK 미설치 (JRE만 설치됨) | `brew install openjdk@17` |
-| `ANDROID_HOME not set` | 환경 변수 미설정 | 2.4 절차 수행 |
-| `SDK location not found` | Android SDK 미설치 | 2.3 절차 수행 |
-| `Failed to find target with hash string 'android-34'` | SDK 플랫폼 미설치 | SDK Manager에서 Android 14 (API 34) 설치 |
-| `Execution failed for task ':app:mergeReleaseResources'` | 리소스 충돌 | 템플릿 아이콘 형식 확인 (PNG) |
+| 증상                                                     | 원인                         | 해결                                     |
+| -------------------------------------------------------- | ---------------------------- | ---------------------------------------- |
+| `java: command not found`                                | Java 미설치 또는 PATH 미설정 | 2.2 절차 수행                            |
+| `keytool: command not found`                             | JDK 미설치 (JRE만 설치됨)    | `brew install openjdk@17`                |
+| `ANDROID_HOME not set`                                   | 환경 변수 미설정             | 2.4 절차 수행                            |
+| `SDK location not found`                                 | Android SDK 미설치           | 2.3 절차 수행                            |
+| `Failed to find target with hash string 'android-34'`    | SDK 플랫폼 미설치            | SDK Manager에서 Android 14 (API 34) 설치 |
+| `Execution failed for task ':app:mergeReleaseResources'` | 리소스 충돌                  | 템플릿 아이콘 형식 확인 (PNG)            |
 
 ---
 
@@ -229,6 +232,7 @@ keytool -list -v -keystore release.keystore -storepass webview123
 ```
 
 **출력 예시**:
+
 ```
 Alias name: webview-build
 Creation date: ...
@@ -260,11 +264,11 @@ jarsigner -verify -verbose -certs app-release.apk
 
 ### 6.4 Keystore 기본값 (자동 생성 시)
 
-| 항목 | 값 |
-|------|-----|
-| storePassword | webview123 |
-| keyPassword | webview123 |
-| keyAlias | webview-build |
+| 항목          | 값            |
+| ------------- | ------------- |
+| storePassword | webview123    |
+| keyPassword   | webview123    |
+| keyAlias      | webview-build |
 
 > **주의**: 프로덕션 배포 시 별도 Keystore를 생성하고 비밀번호를 안전하게 관리하세요.
 
@@ -272,19 +276,19 @@ jarsigner -verify -verbose -certs app-release.apk
 
 ## 7. 참조 문서
 
-| 문서 | 용도 |
-|------|------|
-| ENVIRONMENT_SETUP.md | nginx, 로컬 실행 방식 |
-| DEV_SPEC.md 7장 | 빌드 프로세스 상세 |
-| [Capacitor Android](https://capacitorjs.com/docs/android) | Capacitor 공식 문서 |
+| 문서                                                                | 용도                  |
+| ------------------------------------------------------------------- | --------------------- |
+| ENVIRONMENT_SETUP.md                                                | nginx, 로컬 실행 방식 |
+| DEV_SPEC.md 7장                                                     | 빌드 프로세스 상세    |
+| [Capacitor Android](https://capacitorjs.com/docs/android)           | Capacitor 공식 문서   |
 | [Android 개발자](https://developer.android.com/studio/command-line) | SDK command-line 도구 |
 
 ---
 
 ## 8. 변경 이력
 
-| 날짜 | 내용 |
-|------|------|
-| 2026-02-27 | 최초 작성 (Java 17, Android SDK, keytool) |
-| 2026-02-27 | Keystore 검증 방법 추가, 앱 아이콘 ic_launcher_foreground 적용 |
+| 날짜       | 내용                                                                                                              |
+| ---------- | ----------------------------------------------------------------------------------------------------------------- |
+| 2026-02-27 | 최초 작성 (Java 17, Android SDK, keytool)                                                                         |
+| 2026-02-27 | Keystore 검증 방법 추가, 앱 아이콘 ic_launcher_foreground 적용                                                    |
 | 2026-02-27 | 앱 아이콘 규격 섹션 추가 (Android 공식), PHP GD 리사이징, 업로드 경로(public/private) 해석, 3단계 아이콘 미리보기 |

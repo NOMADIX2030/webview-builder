@@ -15,7 +15,7 @@
         </div>
     @endif
 
-    <form action="{{ route('build.step2.store') }}" method="POST" class="flex flex-col gap-6">
+    <form action="{{ route('build.step2.store') }}" method="POST" enctype="multipart/form-data" class="flex flex-col gap-6">
         @csrf
 
         <div>
@@ -67,6 +67,35 @@
             @error('support_url')
                 <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
             @enderror
+        </div>
+
+        <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-600">
+            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">FCM 푸시 알림 (선택)</label>
+            <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">앱이 백그라운드일 때도 알림을 받으려면 Firebase 프로젝트의 google-services.json을 등록하세요. 패키지 ID와 Firebase 등록 패키지가 일치해야 합니다.</p>
+            <label class="mb-3 flex items-center gap-2">
+                <input type="checkbox" name="fcm_enabled" value="1"
+                    {{ old('fcm_enabled', $step2['fcm_enabled'] ?? false) ? 'checked' : '' }}
+                    id="fcm_enabled"
+                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
+                <span class="text-sm text-gray-700 dark:text-gray-300">푸시 알림 사용</span>
+            </label>
+            <div id="fcm-file-wrap" class="{{ old('fcm_enabled', $step2['fcm_enabled'] ?? false) ? '' : 'hidden' }}">
+                @if(!empty($step2['google_services_path'] ?? null))
+                    <p class="mb-2 text-xs text-green-600 dark:text-green-400">✓ 이미 등록됨. 변경하려면 새 파일을 선택하세요.</p>
+                @endif
+                <label for="google_services_json" class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">google-services.json</label>
+                <input type="file" name="google_services_json" id="google_services_json" accept=".json"
+                    class="block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-300">
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Firebase Console → 프로젝트 설정 → Android 앱 → google-services.json 다운로드</p>
+                <div class="mt-3">
+                    <label for="fcm_click_url_key" class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">푸시 탭 시 URL 키 (선택)</label>
+                    <input type="text" name="fcm_click_url_key" id="fcm_click_url_key"
+                        value="{{ old('fcm_click_url_key', $step2['fcm_click_url_key'] ?? 'action_url') }}"
+                        placeholder="action_url"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white font-mono">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">푸시 data에서 URL을 읽을 키. 서버가 <code>data.action_url</code> 등으로 보내면 해당 키 입력. 기본: action_url</p>
+                </div>
+            </div>
         </div>
 
         <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-600">
@@ -131,4 +160,22 @@
         </div>
     </form>
 </div>
+
+@push('scripts')
+<script>
+(function() {
+    var fcmCb = document.getElementById('fcm_enabled');
+    var fileWrap = document.getElementById('fcm-file-wrap');
+    var fileInput = document.getElementById('google_services_json');
+    var hasPrevFile = {{ !empty($step2['google_services_path'] ?? null) ? 'true' : 'false' }};
+    function update() {
+        var checked = fcmCb?.checked;
+        fileWrap?.classList.toggle('hidden', !checked);
+        fileInput.required = checked && !hasPrevFile;
+    }
+    fcmCb?.addEventListener('change', update);
+    update();
+})();
+</script>
+@endpush
 @endsection

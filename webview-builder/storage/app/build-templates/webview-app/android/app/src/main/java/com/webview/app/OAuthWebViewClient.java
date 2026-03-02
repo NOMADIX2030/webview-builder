@@ -87,5 +87,6 @@ public class OAuthWebViewClient extends WebViewClient {
         }
         view.evaluateJavascript(JS_SAVE_IMAGE_BRIDGE, null);
         view.evaluateJavascript(JS_BLOB_HOOK, null);
+        {{FCM_BRIDGE_INJECT}}
     }
 }

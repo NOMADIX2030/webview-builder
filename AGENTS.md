@@ -50,15 +50,14 @@
 - 아이콘 미리보기: 실제와 90% 이상 동일 (rounded-[22%], object-cover, bg-white) — 검증 완료
 - 뒤로가기: OnBackPressedCallback → webView.canGoBack() 시 goBack() → 루트에서 2회 연속 시 종료 (알림 없음) — 검증 완료
 - OAuth/소셜 로그인: OAuthWebViewClient로 카카오·구글·네이버 등 OAuth URL을 WebView 내 로드 (외부 브라우저 이탈 방지) — 카카오 로그인 검증 완료
+- **FCM 푸시**: google-services.json 패키지명 자동 치환, 앱 로고 알림 아이콘, 헤드업 알림, 알림 탭 시 URL 로드 (포그라운드·백그라운드 모두 정상 동작)
 
 ### 최근 작업 (2026-02-28)
 
-- **OAuth/소셜 로그인**: OAuthWebViewClient 적용, 카카오 로그인 인앱 처리 (검증 완료)
-- **Laravel Blade 마이그레이션**: Next.js 제거, Blade + Tailwind 단일 앱
-- **뒤로가기**: Snackbar 제거, 루트에서 2회 연속 시 종료 (안드로이드 테스트 완료)
-- EMFILE 해결: limit.maxfiles.plist LaunchDaemon (8192/81920)
-- 다운로드: X-Accel-Redirect → nginx 직접 파일 서빙
-- 빌드: node_modules 복사 후 삭제 → npm install로 새로 생성 (깨진 심볼릭 링크 방지)
+- **FCM 푸시**: 전체 정상 동작 검증 완료 — 패키지명 치환, 앱 로고 알림 아이콘, 헤드업, 알림 탭 시 action_url → WebView.loadUrl (백그라운드 Intent 처리 포함)
+- **FCM 가이드**: FCM_WEB_DEVELOPER_GUIDE.md 웹 개발자용 상세 안내 (토큰 수신, SPA 예시, FAQ)
+- OAuth/소셜 로그인: 카카오 로그인 인앱 처리 (검증 완료)
+- Laravel Blade 마이그레이션, 뒤로가기, EMFILE 해결, 다운로드 X-Accel-Redirect
 - sudo: AGENTS.md 섹션 7 참조
 
 ### 다음 단계

@@ -129,6 +129,8 @@ class CapacitorBuildService
 
         $this->injectConfig($projectPath, $build);
         $this->injectExtraPermissions($projectPath, $build);
+        $this->copyGoogleServicesJson($projectPath, $build);
+        $this->injectFcmConfig($projectPath, $build);
         $this->copyIcons($projectPath, $build);
 
         $keystorePath = $this->generateKeystore($buildDir, $build);
@@ -222,6 +224,299 @@ class CapacitorBuildService
     }
 
     /**
+     * FCM 사용 시 google-services.json을 android/app/에 복사.
+     */
+    private function copyGoogleServicesJson(string $projectPath, Build $build): void
+    {
+        $path = $build->config_json['google_services_path'] ?? null;
+        if (! $path || ! ($build->config_json['fcm_enabled'] ?? false)) {
+            return;
+        }
+
+        $srcPath = $this->resolveIconPath($path);
+        if (! $srcPath || ! File::exists($srcPath)) {
+            $candidates = [
+                storage_path('app/public/' . ltrim($path, '/')),
+                storage_path('app/private/' . ltrim($path, '/')),
+            ];
+            foreach ($candidates as $c) {
+                if (File::exists($c)) {
+                    $srcPath = $c;
+                    break;
+                }
+            }
+        }
+        if (! $srcPath || ! File::exists($srcPath)) {
+            return;
+        }
+
+        $destPath = "{$projectPath}/android/app/google-services.json";
+        $json = json_decode(File::get($srcPath), true);
+        if (is_array($json) && isset($json['client']) && is_array($json['client'])) {
+            $packageId = $build->package_id;
+            foreach ($json['client'] as &$client) {
+                if (isset($client['client_info']['android_client_info']['package_name'])) {
+                    $client['client_info']['android_client_info']['package_name'] = $packageId;
+                }
+            }
+            unset($client);
+            File::put($destPath, json_encode($json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        } else {
+            File::copy($srcPath, $destPath);
+        }
+    }
+
+    /**
+     * FCM 사용 시 firebase-messaging 의존성 추가, Service 등록, MainActivity/OAuthWebViewClient에 FCM 코드 주입.
+     */
+    private function injectFcmConfig(string $projectPath, Build $build): void
+    {
+        $fcmEnabled = $build->config_json['fcm_enabled'] ?? false;
+
+        if ($fcmEnabled) {
+            $this->addFirebaseMessagingDependency($projectPath);
+            $this->injectFcmManifest($projectPath);
+            $this->injectFcmMainActivity($projectPath, $build);
+            $this->injectFcmOAuthWebViewClient($projectPath, true);
+            $this->ensureAppFirebaseMessagingService($projectPath, $build);
+        } else {
+            $this->injectFcmMainActivity($projectPath, null);
+            $this->injectFcmOAuthWebViewClient($projectPath, false);
+        }
+    }
+
+    private function addFirebaseMessagingDependency(string $projectPath): void
+    {
+        $buildGradlePath = "{$projectPath}/android/app/build.gradle";
+        if (! File::exists($buildGradlePath)) {
+            return;
+        }
+        $content = File::get($buildGradlePath);
+        if (str_contains($content, 'firebase-messaging')) {
+            return;
+        }
+        $content = preg_replace(
+            '/implementation project\(\':capacitor-cordova-android-plugins\'\)/',
+            "implementation project(':capacitor-cordova-android-plugins')\n    implementation 'com.google.firebase:firebase-messaging:23.4.1'",
+            $content,
+            1
+        );
+        File::put($buildGradlePath, $content);
+    }
+
+    private function injectFcmManifest(string $projectPath): void
+    {
+        $manifestPath = "{$projectPath}/android/app/src/main/AndroidManifest.xml";
+        if (! File::exists($manifestPath)) {
+            return;
+        }
+        $content = File::get($manifestPath);
+        if (str_contains($content, 'AppFirebaseMessagingService')) {
+            return;
+        }
+        $serviceBlock = "\n        <service\n            android:name=\".AppFirebaseMessagingService\"\n            android:exported=\"false\">\n            <intent-filter>\n                <action android:name=\"com.google.firebase.MESSAGING_EVENT\" />\n            </intent-filter>\n        </service>";
+        $content = preg_replace(
+            '/    <\/application>/',
+            $serviceBlock . "\n    </application>",
+            $content,
+            1
+        );
+        if (! str_contains($content, 'default_notification_icon')) {
+            $metaBlock = "\n        <meta-data\n            android:name=\"com.google.firebase.messaging.default_notification_icon\"\n            android:resource=\"@drawable/ic_stat_ic_notification\" />\n        <meta-data\n            android:name=\"com.google.firebase.messaging.default_notification_channel_id\"\n            android:value=\"@string/default_notification_channel_id\" />";
+            $content = preg_replace(
+                '/android:theme="@style\/AppTheme">/',
+                'android:theme="@style/AppTheme">' . $metaBlock,
+                $content,
+                1
+            );
+        }
+        File::put($manifestPath, $content);
+    }
+
+    private function injectFcmMainActivity(string $projectPath, ?Build $build): void
+    {
+        $path = "{$projectPath}/android/app/src/main/java/com/webview/app/MainActivity.java";
+        if (! File::exists($path)) {
+            return;
+        }
+        $enabled = $build !== null;
+        $clickKey = $enabled ? ($build->config_json['fcm_click_url_key'] ?? 'action_url') : 'action_url';
+        if (empty($clickKey) || ! preg_match('/^[a-zA-Z0-9_-]+$/', $clickKey)) {
+            $clickKey = 'action_url';
+        }
+        $content = File::get($path);
+        $content = str_replace('{{FCM_INIT_BLOCK}}', $enabled ? $this->getFcmInitBlock() : '// FCM disabled', $content);
+        $content = str_replace('{{FCM_TOKEN_TO_WEB_BLOCK}}', $enabled ? $this->getFcmTokenToWebBlock() : '// FCM disabled', $content);
+        $content = str_replace('{{FCM_RESUME_HANDLER}}', $enabled ? 'handleFcmClickUrl();' : '', $content);
+        $content = str_replace('{{FCM_CLICK_HANDLER}}', $enabled ? $this->getFcmClickHandlerBlock($clickKey) : '// FCM disabled', $content);
+        File::put($path, $content);
+    }
+
+    private function getFcmInitBlock(): string
+    {
+        return <<<'JAVA'
+        initFcmAndPassTokenToWeb();
+JAVA;
+    }
+
+    private function getFcmTokenToWebBlock(): string
+    {
+        return <<<'JAVA'
+
+    private static String fcmToken = null;
+
+    private void initFcmAndPassTokenToWeb() {
+        try {
+            com.google.firebase.messaging.FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(task -> {
+                    if (!task.isSuccessful()) return;
+                    String t = task.getResult();
+                    if (t != null) { fcmToken = t; passFcmTokenToWeb(t); }
+                });
+        } catch (Exception ignored) {}
+    }
+
+    void passFcmTokenToWebIfReady(android.webkit.WebView wv) {
+        if (fcmToken != null && wv != null) passFcmTokenToWeb(wv, fcmToken);
+    }
+
+    private void passFcmTokenToWeb(String token) {
+        com.getcapacitor.Bridge b = getBridge();
+        if (b != null) passFcmTokenToWeb(b.getWebView(), token);
+    }
+
+    private void passFcmTokenToWeb(android.webkit.WebView wv, String token) {
+        if (wv == null || token == null) return;
+        String escaped = token.replace("\\", "\\\\").replace("'", "\\'");
+        wv.evaluateJavascript("(function(){if(typeof window.onFcmTokenReady==='function')window.onFcmTokenReady('" + escaped + "');})();", null);
+    }
+JAVA;
+    }
+
+    private function getFcmClickHandlerBlock(string $dataKey): string
+    {
+        $key = addslashes($dataKey);
+        return <<<JAVA
+
+    private static final String FCM_DATA_KEY = "{$key}";
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleFcmClickUrl();
+    }
+
+    private void handleFcmClickUrl() {
+        Intent i = getIntent();
+        if (i == null) return;
+        String url = i.getStringExtra("fcm_click_url");
+        if (url == null || url.isEmpty()) url = i.getStringExtra(FCM_DATA_KEY);
+        if (url == null || url.isEmpty()) return;
+        i.removeExtra("fcm_click_url");
+        i.removeExtra(FCM_DATA_KEY);
+        Bridge b = getBridge();
+        if (b != null) {
+            android.webkit.WebView wv = b.getWebView();
+            if (wv != null) wv.loadUrl(url);
+        }
+    }
+JAVA;
+    }
+
+    private function injectFcmOAuthWebViewClient(string $projectPath, bool $enabled): void
+    {
+        $path = "{$projectPath}/android/app/src/main/java/com/webview/app/OAuthWebViewClient.java";
+        if (! File::exists($path)) {
+            return;
+        }
+        $content = File::get($path);
+        $bridge = $enabled
+            ? "if(view.getContext() instanceof MainActivity){((MainActivity)view.getContext()).passFcmTokenToWebIfReady(view);} view.evaluateJavascript(\"(function(){if(typeof window.onFcmTokenReady!=='function'){window.onFcmTokenReady=function(t){if(window._fcmTokenCb)window._fcmTokenCb(t);};}})();\", null);"
+            : '// FCM disabled';
+        $content = str_replace('{{FCM_BRIDGE_INJECT}}', $bridge, $content);
+        File::put($path, $content);
+    }
+
+    private function ensureAppFirebaseMessagingService(string $projectPath, Build $build): void
+    {
+        $servicePath = "{$projectPath}/android/app/src/main/java/com/webview/app/AppFirebaseMessagingService.java";
+        $pkgDir = dirname($servicePath);
+        File::ensureDirectoryExists($pkgDir);
+        $clickKey = $build->config_json['fcm_click_url_key'] ?? 'action_url';
+        if (empty($clickKey) || ! preg_match('/^[a-zA-Z0-9_-]+$/', $clickKey)) {
+            $clickKey = 'action_url';
+        }
+        File::put($servicePath, $this->getAppFirebaseMessagingServiceContent($clickKey));
+    }
+
+    private function getAppFirebaseMessagingServiceContent(string $clickUrlKey): string
+    {
+        $key = addslashes($clickUrlKey);
+        return str_replace('{{FCM_CLICK_URL_KEY}}', $key, <<<'JAVA'
+package com.webview.app;
+
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Intent;
+import android.os.Build;
+import androidx.core.app.NotificationCompat;
+import com.google.firebase.messaging.FirebaseMessagingService;
+import com.google.firebase.messaging.RemoteMessage;
+
+public class AppFirebaseMessagingService extends FirebaseMessagingService {
+
+    private static final String CHANNEL_ID = "fcm_default_channel";
+
+    @Override
+    public void onNewToken(String token) {
+        super.onNewToken(token);
+    }
+
+    private static final String CLICK_URL_KEY = "{{FCM_CLICK_URL_KEY}}";
+
+    @Override
+    public void onMessageReceived(RemoteMessage message) {
+        if (message.getNotification() != null) {
+            createNotificationChannel();
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            Intent i = new Intent(this, MainActivity.class);
+            i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            java.util.Map<String, String> data = message.getData();
+            if (data != null && data.containsKey(CLICK_URL_KEY)) {
+                String url = data.get(CLICK_URL_KEY);
+                if (url != null && !url.isEmpty()) {
+                    i.putExtra("fcm_click_url", url);
+                }
+            }
+            PendingIntent pi = PendingIntent.getActivity(this, 0, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            NotificationCompat.Builder b = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_ic_notification)
+                .setContentTitle(message.getNotification().getTitle() != null ? message.getNotification().getTitle() : "알림")
+                .setContentText(message.getNotification().getBody() != null ? message.getNotification().getBody() : "")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setContentIntent(pi)
+                .setAutoCancel(true);
+            nm.notify((int) System.currentTimeMillis(), b.build());
+        }
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel ch = new NotificationChannel(CHANNEL_ID, "알림", NotificationManager.IMPORTANCE_HIGH);
+            ch.enableVibration(true);
+            ch.enableLights(true);
+            ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).createNotificationChannel(ch);
+        }
+    }
+}
+JAVA
+        );
+    }
+
+    /**
      * @capacitor/assets로 아이콘 생성 (공식 도구, 품질 우수)
      * 실패 시 PHP GD로 폴백
      */
@@ -233,10 +528,98 @@ class CapacitorBuildService
         }
 
         if ($this->generateIconsWithCapacitorAssets($projectPath, $iconPath)) {
+            $this->generateNotificationIconFromAppIcon($projectPath, $iconPath, $build);
             return;
         }
 
         $this->generateIconsWithPhpGd($projectPath, $iconPath);
+        $this->generateNotificationIconFromAppIcon($projectPath, $iconPath, $build);
+    }
+
+    /**
+     * FCM 사용 시 앱 아이콘에서 알림 아이콘(흰색 실루엣) 생성.
+     * Android 트레이에는 흰색/투명 아이콘만 표시 가능.
+     */
+    private function generateNotificationIconFromAppIcon(string $projectPath, string $iconPath, Build $build): void
+    {
+        if (! ($build->config_json['fcm_enabled'] ?? false)) {
+            return;
+        }
+
+        $drawablePath = "{$projectPath}/android/app/src/main/res/drawable";
+        if (! File::isDirectory($drawablePath)) {
+            File::ensureDirectoryExists($drawablePath);
+        }
+
+        $info = @getimagesize($iconPath);
+        if (! $info || ! in_array($info[2], [IMAGETYPE_PNG, IMAGETYPE_JPEG, IMAGETYPE_WEBP], true)) {
+            return;
+        }
+
+        $src = match ($info[2]) {
+            IMAGETYPE_PNG => @imagecreatefrompng($iconPath),
+            IMAGETYPE_JPEG => @imagecreatefromjpeg($iconPath),
+            IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($iconPath) : null,
+            default => null,
+        };
+        if (! $src) {
+            return;
+        }
+
+        $w = imagesx($src);
+        $h = imagesy($src);
+        $tmp = imagecreatetruecolor($w, $h);
+        if (! $tmp) {
+            imagedestroy($src);
+            return;
+        }
+        imagealphablending($tmp, false);
+        imagesavealpha($tmp, true);
+        $transparent = imagecolorallocatealpha($tmp, 0, 0, 0, 127);
+        imagefill($tmp, 0, 0, $transparent);
+        $white = imagecolorallocatealpha($tmp, 255, 255, 255, 0);
+
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                $rgba = @imagecolorat($src, $x, $y);
+                $a = ($rgba >> 24) & 0x7F;
+                $r = ($rgba >> 16) & 0xFF;
+                $g = ($rgba >> 8) & 0xFF;
+                $b = $rgba & 0xFF;
+                $luma = ($r + $g + $b) / 3;
+                // 로고 영역만 흰색으로. 배경(투명/흰색) 제외. Android는 alpha 채널만 사용.
+                $isOpaque = $a < 60;
+                $isDarkOrColored = $luma < 250;
+                $visible = ($info[2] === IMAGETYPE_PNG && $isOpaque && $isDarkOrColored)
+                    || ($info[2] !== IMAGETYPE_PNG && $isDarkOrColored);
+                if ($visible) {
+                    imagesetpixel($tmp, $x, $y, $white);
+                }
+            }
+        }
+
+        $size = 96;
+        $dst = imagecreatetruecolor($size, $size);
+        if (! $dst) {
+            imagedestroy($src);
+            imagedestroy($tmp);
+            return;
+        }
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+        imagefill($dst, 0, 0, imagecolorallocatealpha($dst, 0, 0, 0, 127));
+        imagecopyresampled($dst, $tmp, 0, 0, 0, 0, $size, $size, $w, $h);
+        imagedestroy($tmp);
+
+        $outPath = "{$drawablePath}/ic_stat_ic_notification.png";
+        imagepng($dst, $outPath, 9);
+        imagedestroy($src);
+        imagedestroy($dst);
+
+        $xmlPath = "{$drawablePath}/ic_stat_ic_notification.xml";
+        if (File::exists($xmlPath)) {
+            File::delete($xmlPath);
+        }
     }
 
     private function generateIconsWithCapacitorAssets(string $projectPath, string $iconPath): bool

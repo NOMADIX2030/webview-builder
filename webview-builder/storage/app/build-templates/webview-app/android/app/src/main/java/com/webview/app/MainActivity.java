@@ -1,6 +1,7 @@
 package com.webview.app;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -32,6 +33,7 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         requestRequiredPermissions();
+        {{FCM_INIT_BLOCK}}
         installWebViewHandlers();
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -85,6 +87,7 @@ public class MainActivity extends BridgeActivity {
     public void onResume() {
         super.onResume();
         installWebViewHandlers();
+        {{FCM_RESUME_HANDLER}}
     }
 
     @Override
@@ -209,4 +212,6 @@ public class MainActivity extends BridgeActivity {
         if (s == null) return "";
         return s.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r");
     }
+{{FCM_TOKEN_TO_WEB_BLOCK}}
+{{FCM_CLICK_HANDLER}}
 }
