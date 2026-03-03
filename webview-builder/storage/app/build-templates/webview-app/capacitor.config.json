@@ -2,6 +2,9 @@
   "appId": "{{PACKAGE_ID}}",
   "appName": "{{APP_NAME}}",
   "webDir": "www",
+  "android": {
+    "adjustMarginsForEdgeToEdge": "disable"
+  },
   "server": {
     "url": "{{WEB_URL}}",
     "cleartext": true,

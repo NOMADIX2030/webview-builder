@@ -14,6 +14,9 @@ import android.webkit.WebViewClient;
 import androidx.activity.OnBackPressedCallback;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
 import java.util.ArrayList;
@@ -35,6 +38,12 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Edge-to-edge: 헤더가 상단 엣지까지 붙음. 상태바(시간·배터리) 숨김.
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        WindowInsetsControllerCompat compat = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (compat != null) {
+            compat.hide(WindowInsetsCompat.Type.statusBars());
+        }
         requestRequiredPermissions();
         {{FCM_INIT_BLOCK}}
         installWebViewHandlers();
