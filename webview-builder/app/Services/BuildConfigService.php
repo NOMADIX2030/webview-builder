@@ -28,6 +28,14 @@ class BuildConfigService
     }
 
     /**
+     * iOS Bundle ID 생성 (기본값: package_id와 동일)
+     */
+    public function generateBundleId(string $webUrl): string
+    {
+        return $this->generatePackageId($webUrl);
+    }
+
+    /**
      * 개인정보처리방침 URL 생성
      */
     public function generatePrivacyPolicyUrl(string $webUrl): string
@@ -53,6 +61,7 @@ class BuildConfigService
         return [
             'appName' => $this->generateAppName($webUrl),
             'packageId' => $this->generatePackageId($webUrl),
+            'bundleId' => $this->generateBundleId($webUrl),
             'privacyPolicyUrl' => $this->generatePrivacyPolicyUrl($webUrl),
             'supportUrl' => $this->generateSupportUrl($webUrl),
             'versionName' => '1.0.0',

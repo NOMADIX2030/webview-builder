@@ -30,6 +30,28 @@
             @enderror
         </div>
 
+        <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-600">
+            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">빌드 플랫폼</label>
+            <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">빌드할 플랫폼을 선택하세요. 최소 1개 이상 선택해야 합니다.</p>
+            <div class="flex flex-wrap gap-4">
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" name="platforms[]" value="android"
+                        {{ in_array('android', old('platforms', ['android'])) ? 'checked' : '' }}
+                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
+                    <span class="text-sm text-gray-700 dark:text-gray-300">Android APK</span>
+                </label>
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" name="platforms[]" value="ios"
+                        {{ in_array('ios', old('platforms', [])) ? 'checked' : '' }}
+                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
+                    <span class="text-sm text-gray-700 dark:text-gray-300">iOS IPA</span>
+                </label>
+            </div>
+            @error('platforms')
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+            @enderror
+        </div>
+
         <div class="rounded-lg border border-blue-100 bg-blue-50 p-4 dark:border-blue-900/50 dark:bg-blue-900/20">
             <p class="text-sm font-medium text-blue-800 dark:text-blue-300">기본 권한 포함</p>
             <p class="mt-1 text-xs text-blue-700 dark:text-blue-400">앱 실행 시 다음 권한이 요청됩니다: 저장소(파일·사진), 알림. 2단계에서 위치, 카메라, 마이크 등 추가 권한을 선택할 수 있습니다.</p>

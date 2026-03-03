@@ -527,5 +527,6 @@ https://yoursite.com/auth/app-login?token={저장된_토큰}&redirect={목적지
 ## 8. 참고
 
 - [Firebase Cloud Messaging 문서](https://firebase.google.com/docs/cloud-messaging)
+- **iOS 앱**: `FCM_IOS_WEB_DEVELOPER_GUIDE.md` 참조 (GoogleService-Info.plist, APNs 키 등)
 - [FCM HTTP v1 API](https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages)
 - FCM은 **무료**이며, 메시지 수 제한이 없습니다.

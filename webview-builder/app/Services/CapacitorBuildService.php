@@ -112,6 +112,7 @@ class CapacitorBuildService
         $buildId = $build->id;
         $projectPath = "{$this->outputPath}/{$buildId}/project";
         $buildDir = "{$this->outputPath}/{$buildId}";
+        $platforms = $build->config_json['platforms'] ?? ['android'];
 
         if (! File::isDirectory($this->templatePath)) {
             throw new \RuntimeException('Capacitor 템플릿이 없습니다.');
@@ -121,46 +122,72 @@ class CapacitorBuildService
         File::copyDirectory($this->templatePath, $projectPath);
 
         // 템플릿 node_modules는 복사하지 않고 매번 npm install로 새로 생성
-        // (깨진 심볼릭 링크 등으로 copy 실패 방지)
         $projectNodeModules = "{$projectPath}/node_modules";
         if (File::isDirectory($projectNodeModules)) {
             File::deleteDirectory($projectNodeModules);
         }
 
         $this->injectConfig($projectPath, $build);
-        $this->injectAppDomainToOAuthWebViewClient($projectPath, $build);
-        $this->injectExtraPermissions($projectPath, $build);
-        $this->copyGoogleServicesJson($projectPath, $build);
-        $this->injectFcmConfig($projectPath, $build);
-        $this->copyIcons($projectPath, $build);
 
-        $keystorePath = $this->generateKeystore($buildDir, $build);
-        $this->configureSigning($projectPath, $keystorePath);
-
-        $this->runNpmInstall($projectPath);
-        $this->runCapSync($projectPath);
-        $apkPath = $this->runAndroidBuild($projectPath);
-
-        if ($apkPath && File::exists($apkPath)) {
-            $apkName = basename($apkPath);
-            $destPath = "{$this->outputPath}/{$buildId}/{$apkName}";
-            File::ensureDirectoryExists(dirname($destPath));
-            File::move($apkPath, $destPath);
-            $build->update(['apk_path' => "builds/{$buildId}/{$apkName}"]);
+        if (in_array('android', $platforms)) {
+            $this->injectAppDomainToOAuthWebViewClient($projectPath, $build);
+            $this->injectExtraPermissions($projectPath, $build);
+            $this->copyGoogleServicesJson($projectPath, $build);
+            $this->injectFcmConfig($projectPath, $build);
         }
 
-        if ($keystorePath) {
-            $build->update(['keystore_path' => "builds/{$buildId}/release.keystore"]);
+        $this->copyIcons($projectPath, $build, $platforms);
+
+        $this->runNpmInstall($projectPath);
+
+        if (in_array('android', $platforms)) {
+            $keystorePath = $this->generateKeystore($buildDir, $build);
+            $this->configureSigning($projectPath, $keystorePath);
+            $this->runCapSync($projectPath, 'android');
+            $apkPath = $this->runAndroidBuild($projectPath);
+
+            if ($apkPath && File::exists($apkPath)) {
+                $apkName = basename($apkPath);
+                $destPath = "{$this->outputPath}/{$buildId}/{$apkName}";
+                File::ensureDirectoryExists(dirname($destPath));
+                File::move($apkPath, $destPath);
+                $build->update(['apk_path' => "builds/{$buildId}/{$apkName}"]);
+            }
+
+            if (isset($keystorePath) && $keystorePath) {
+                $build->update(['keystore_path' => "builds/{$buildId}/release.keystore"]);
+            }
+        }
+
+        if (in_array('ios', $platforms)) {
+            $this->injectConfigIos($projectPath, $build);
+            $this->runCapSync($projectPath, 'ios');
+            $ipaPath = $this->runIosBuild($projectPath, $buildDir);
+
+            if ($ipaPath && File::exists($ipaPath)) {
+                $ipaName = basename($ipaPath);
+                $destPath = "{$this->outputPath}/{$buildId}/{$ipaName}";
+                File::ensureDirectoryExists(dirname($destPath));
+                File::move($ipaPath, $destPath);
+                $build->update(['ipa_path' => "builds/{$buildId}/{$ipaName}"]);
+            }
         }
     }
 
     private function injectConfig(string $projectPath, Build $build): void
     {
+        $bundleId = $build->config_json['bundle_id'] ?? $build->package_id;
+        $appHost = parse_url($build->web_url, PHP_URL_HOST) ?: '';
         $replacements = [
             '{{PACKAGE_ID}}' => $build->package_id,
             '{{APP_NAME}}' => $build->app_name,
             '{{WEB_URL}}' => $build->web_url,
         ];
+        if ($appHost && preg_match('/^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]$/', $appHost)) {
+            $replacements['"{{APP_HOST}}"'] = '"' . $appHost . '"';
+        } else {
+            $replacements[",\n      \"{{APP_HOST}}\""] = '';
+        }
 
         foreach (['capacitor.config.json', 'www/index.html'] as $file) {
             $path = "{$projectPath}/{$file}";
@@ -168,6 +195,21 @@ class CapacitorBuildService
                 $content = str_replace(array_keys($replacements), array_values($replacements), File::get($path));
                 File::put($path, $content);
             }
+        }
+
+        // iOS: capacitor.config appId는 bundle_id 사용, allowNavigation에 앱 도메인 포함
+        $iosConfigPath = "{$projectPath}/ios/App/App/capacitor.config.json";
+        if (File::exists($iosConfigPath)) {
+            $content = File::get($iosConfigPath);
+            $content = str_replace('{{PACKAGE_ID}}', $bundleId, $content);
+            $content = str_replace('{{APP_NAME}}', $build->app_name, $content);
+            $content = str_replace('{{WEB_URL}}', $build->web_url, $content);
+            if ($appHost && preg_match('/^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]$/', $appHost)) {
+                $content = str_replace('"{{APP_HOST}}"', '"' . $appHost . '"', $content);
+            } else {
+                $content = str_replace(",\n\t\t\t\"{{APP_HOST}}\"", '', $content);
+            }
+            File::put($iosConfigPath, $content);
         }
 
         $buildGradlePath = "{$projectPath}/android/app/build.gradle";
@@ -185,6 +227,30 @@ class CapacitorBuildService
             $content = preg_replace('/<string name="app_name">[^<]+<\/string>/', '<string name="app_name">' . htmlspecialchars($build->app_name, ENT_XML1) . '</string>', $content);
             $content = preg_replace('/<string name="title_activity_main">[^<]+<\/string>/', '<string name="title_activity_main">' . htmlspecialchars($build->app_name, ENT_XML1) . '</string>', $content);
             File::put($stringsPath, $content);
+        }
+    }
+
+    /**
+     * iOS 전용 설정 주입: Info.plist, project.pbxproj
+     */
+    private function injectConfigIos(string $projectPath, Build $build): void
+    {
+        $bundleId = $build->config_json['bundle_id'] ?? $build->package_id;
+
+        $infoPlistPath = "{$projectPath}/ios/App/App/Info.plist";
+        if (File::exists($infoPlistPath)) {
+            $content = File::get($infoPlistPath);
+            $content = preg_replace('/(<key>CFBundleDisplayName<\/key>\s*)<string>[^<]*<\/string>/s', '$1<string>' . htmlspecialchars($build->app_name, ENT_XML1) . '</string>', $content);
+            File::put($infoPlistPath, $content);
+        }
+
+        $pbxPath = "{$projectPath}/ios/App/App.xcodeproj/project.pbxproj";
+        if (File::exists($pbxPath)) {
+            $content = File::get($pbxPath);
+            $content = preg_replace('/PRODUCT_BUNDLE_IDENTIFIER = com\.webview\.app;/', 'PRODUCT_BUNDLE_IDENTIFIER = ' . $bundleId . ';', $content);
+            $content = preg_replace('/MARKETING_VERSION = [^;]+;/', 'MARKETING_VERSION = ' . $build->version_name . ';', $content);
+            $content = preg_replace('/CURRENT_PROJECT_VERSION = \d+;/', 'CURRENT_PROJECT_VERSION = ' . $build->version_code . ';', $content);
+            File::put($pbxPath, $content);
         }
     }
 
@@ -595,20 +661,67 @@ JAVA
      * @capacitor/assets로 아이콘 생성 (공식 도구, 품질 우수)
      * 실패 시 PHP GD로 폴백
      */
-    private function copyIcons(string $projectPath, Build $build): void
+    private function copyIcons(string $projectPath, Build $build, array $platforms = ['android']): void
     {
         $iconPath = $this->resolveIconPath($build->app_icon_path);
         if (! $iconPath || ! File::exists($iconPath)) {
             return;
         }
 
-        if ($this->generateIconsWithCapacitorAssets($projectPath, $iconPath)) {
-            $this->generateNotificationIconFromAppIcon($projectPath, $iconPath, $build);
-            return;
+        if (in_array('android', $platforms)) {
+            if ($this->generateIconsWithCapacitorAssets($projectPath, $iconPath)) {
+                $this->generateNotificationIconFromAppIcon($projectPath, $iconPath, $build);
+            } else {
+                $this->generateIconsWithPhpGd($projectPath, $iconPath);
+                $this->generateNotificationIconFromAppIcon($projectPath, $iconPath, $build);
+            }
         }
 
-        $this->generateIconsWithPhpGd($projectPath, $iconPath);
-        $this->generateNotificationIconFromAppIcon($projectPath, $iconPath, $build);
+        if (in_array('ios', $platforms)) {
+            $this->generateIconsForIos($projectPath, $iconPath);
+        }
+    }
+
+    /**
+     * iOS 앱 아이콘 생성 (@capacitor/assets 또는 PHP GD)
+     */
+    private function generateIconsForIos(string $projectPath, string $iconPath): void
+    {
+        if ($this->generateIconsWithCapacitorAssetsIos($projectPath, $iconPath)) {
+            return;
+        }
+        $this->generateIconsForIosWithPhpGd($projectPath, $iconPath);
+    }
+
+    private function generateIconsWithCapacitorAssetsIos(string $projectPath, string $iconPath): bool
+    {
+        $assetsDir = "{$projectPath}/assets";
+        File::ensureDirectoryExists($assetsDir);
+        $logoPath = "{$assetsDir}/logo.png";
+        if (! $this->copyOrConvertToPng($iconPath, $logoPath)) {
+            return false;
+        }
+        $result = Process::path($projectPath)
+            ->env($this->processEnv)
+            ->timeout(60)
+            ->run([
+                'npx', '--yes', '@capacitor/assets',
+                'generate',
+                '--ios',
+                '--iosProject', 'ios/App',
+                '--assetPath', 'assets',
+                '--iconBackgroundColor', '#FFFFFF',
+            ]);
+        return $result->successful();
+    }
+
+    private function generateIconsForIosWithPhpGd(string $projectPath, string $iconPath): void
+    {
+        $appiconset = "{$projectPath}/ios/App/App/Assets.xcassets/AppIcon.appiconset";
+        if (! File::isDirectory($appiconset)) {
+            return;
+        }
+        $this->resizeAndSaveIcon($iconPath, "{$appiconset}/AppIcon-512@2x.png", 1024);
     }
 
     /**
@@ -920,14 +1033,14 @@ GRADLE;
         }
     }
 
-    private function runCapSync(string $projectPath): void
+    private function runCapSync(string $projectPath, string $platform = 'android'): void
     {
         $result = Process::path($projectPath)
             ->env($this->processEnv)
             ->timeout(120)
-            ->run('npx cap sync android');
+            ->run("npx cap sync {$platform}");
         if (! $result->successful()) {
-            throw new \RuntimeException('cap sync 실패: ' . $result->errorOutput());
+            throw new \RuntimeException("cap sync {$platform} 실패: " . $result->errorOutput());
         }
     }
 
@@ -958,5 +1071,139 @@ GRADLE;
         $apkPath = "{$androidPath}/app/build/outputs/apk/release/app-release.apk";
 
         return File::exists($apkPath) ? $apkPath : null;
+    }
+
+    /**
+     * iOS 시뮬레이터용 빌드 (서명 불필요). .app 생성 후 zip으로 저장.
+     * 참고: generic/platform=iOS Simulator는 Xcode 14+에서 지원되지 않음. 특정 시뮬레이터 지정 필요.
+     */
+    private function runIosBuild(string $projectPath, string $buildDir): ?string
+    {
+        $iosPath = "{$projectPath}/ios/App";
+        $xcodeProject = "{$iosPath}/App.xcodeproj";
+
+        if (! File::exists($xcodeProject)) {
+            throw new \RuntimeException('iOS 프로젝트가 없습니다. 템플릿에 ios/ 폴더가 있는지 확인하세요.');
+        }
+
+        $derivedData = "{$buildDir}/ios-derived";
+        File::ensureDirectoryExists($derivedData);
+
+        $env = $this->processEnv;
+        $xcodePath = '/Applications/Xcode.app/Contents/Developer';
+        if (is_dir($xcodePath)) {
+            $env['DEVELOPER_DIR'] = $xcodePath;
+        }
+
+        $destination = $this->resolveIosSimulatorDestination($iosPath, $env);
+        if (! $destination) {
+            throw new \RuntimeException(
+                '사용 가능한 iOS 시뮬레이터를 찾을 수 없습니다. ' .
+                'Xcode → Window → Devices and Simulators에서 iOS 시뮬레이터 런타임을 설치해 주세요. ' .
+                '(예: iOS 18.x 시뮬레이터)'
+            );
+        }
+
+        $result = Process::path($iosPath)
+            ->env($env)
+            ->timeout(300)
+            ->run([
+                'xcodebuild',
+                '-project', 'App.xcodeproj',
+                '-scheme', 'App',
+                '-configuration', 'Debug',
+                '-sdk', 'iphonesimulator',
+                '-destination', $destination,
+                '-derivedDataPath', $derivedData,
+                'build',
+            ]);
+
+        if (! $result->successful()) {
+            $err = $result->errorOutput();
+            $hint = '';
+            if (str_contains($err, 'Unable to find a destination') || str_contains($err, 'is not installed')) {
+                $hint = ' Xcode → Settings → Platforms에서 iOS 시뮬레이터 런타임을 설치해 주세요.';
+            }
+            throw new \RuntimeException('iOS 빌드 실패: ' . $err . $hint);
+        }
+
+        $appPath = "{$derivedData}/Build/Products/Debug-iphonesimulator/App.app";
+        if (! File::isDirectory($appPath)) {
+            return null;
+        }
+
+        $zipPath = "{$buildDir}/App-ios-simulator.zip";
+        $zip = new \ZipArchive;
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return null;
+        }
+        $this->addDirToZip($zip, $appPath, 'App.app');
+        $zip->close();
+
+        return File::exists($zipPath) ? $zipPath : null;
+    }
+
+    /**
+     * xcodebuild -showdestinations에서 사용 가능한 iOS 시뮬레이터 1개 반환.
+     * generic/platform=iOS Simulator는 Xcode 14+ 미지원. placeholder(Any iOS Simulator Device) 제외.
+     */
+    private function resolveIosSimulatorDestination(string $iosPath, array $env): ?string
+    {
+        $result = Process::path($iosPath)
+            ->env($env)
+            ->timeout(30)
+            ->run([
+                'xcodebuild',
+                '-project', 'App.xcodeproj',
+                '-scheme', 'App',
+                '-showdestinations',
+            ]);
+
+        if ($result->successful()) {
+            $output = $result->output() . $result->errorOutput();
+            // placeholder 제외: id에 'placeholder' 포함된 행은 건너뜀
+            if (preg_match_all('/\{ platform:iOS Simulator, id:([^,]+), OS:([^,]+), name:([^}]+) \}/', $output, $matches, PREG_SET_ORDER)) {
+                foreach ($matches as $m) {
+                    $id = trim($m[1]);
+                    $name = trim($m[3]);
+                    if (str_contains($id, 'placeholder') || $name === 'Any iOS Simulator Device') {
+                        continue;
+                    }
+                    // iPhone 우선 (시뮬레이터 빌드에 적합)
+                    if (stripos($name, 'iPhone') !== false) {
+                        return 'platform=iOS Simulator,id=' . $id;
+                    }
+                }
+                // iPhone 없으면 첫 번째 실제 시뮬레이터 사용
+                foreach ($matches as $m) {
+                    $id = trim($m[1]);
+                    $name = trim($m[3]);
+                    if (str_contains($id, 'placeholder') || $name === 'Any iOS Simulator Device') {
+                        continue;
+                    }
+                    return 'platform=iOS Simulator,id=' . $id;
+                }
+            }
+        }
+
+        return 'platform=iOS Simulator,name=iPhone 17';
+    }
+
+    private function addDirToZip(\ZipArchive $zip, string $dir, string $localPath): void
+    {
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS | \RecursiveDirectoryIterator::FOLLOW_SYMLINKS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+        $baseLen = strlen(rtrim($dir, '/')) + 1;
+        foreach ($iterator as $item) {
+            $path = $item->getPathname();
+            $relative = $localPath . '/' . str_replace('\\', '/', substr($path, $baseLen));
+            if ($item->isDir()) {
+                $zip->addEmptyDir($relative . '/');
+            } else {
+                $zip->addFile($path, $relative);
+            }
+        }
     }
 }

@@ -1,6 +1,6 @@
 # 프로젝트 현황
 
-> **최종 업데이트**: 2026년 3월 2일 (FCM 푸시 알림 기능 전체 정상 동작 검증 완료)
+> **최종 업데이트**: 2026년 3월 3일 (iOS 카카오 로그인 인앱 처리 검증 완료)
 
 ---
 
@@ -31,7 +31,7 @@
 |------|------|------|
 | **아이콘 미리보기** | `rounded-[22%]` (스쿼시클), `object-cover`, `bg-white` | 실제 APK와 90% 이상 일치 (검증 완료) |
 | **뒤로가기** | `goBack()` → 서브 경로면 origin 이동 → 루트에서 뒤로가기 2회 연속 시 종료 (알림 없음, 2초 이내) | 앱 내 이전 페이지 이동 + 이중 클릭 종료 |
-| **OAuth/소셜 로그인** | 카카오·구글·네이버 등 OAuth URL을 WebView 내에서 로드 (외부 브라우저 이탈 방지) | API 26+ 적용, 카카오 로그인 검증 완료 |
+| **OAuth/소셜 로그인** | 카카오·구글·네이버 등 OAuth URL을 WebView 내에서 로드 (외부 브라우저 이탈 방지) | Android: OAuthWebViewClient (API 26+). iOS: server.allowNavigation — **카카오 로그인 검증 완료** |
 | **앱 도메인 URL** | OAuthWebViewClient에서 앱 서버 도메인(web_url) URL도 WebView 내 로드 | FCM 채팅 등 동일 도메인 링크가 브라우저로 열리지 않음 |
 | **window.open 처리** | WebChromeClient.onCreateWindow로 target="_blank" 시 부모 WebView에 로드 | 외부 브라우저 이탈 방지 |
 | **PDF/이미지 저장** | DownloadListener → PDF는 Downloads, 이미지는 Pictures(갤러리). blob URL: 훅+이중전략+클릭가로채기 (optiflow 등) | WRITE_EXTERNAL_STORAGE, READ_MEDIA_IMAGES (API 33+) |
@@ -71,8 +71,9 @@
 
 | 순서 | 작업 | 비고 |
 |------|------|------|
-| 1 | 웹뷰 아이콘 및 추가 사항 테스트 | 3단계 미리보기 비율·여백 등 |
-| 2 | 하이브리드 앱 빌드로 확장 | iOS IPA, 네이티브 기능 등 |
+| 1 | iOS 시뮬레이터 빌드 검증 | Phase 1 구현 완료, Xcode 환경에서 테스트 |
+| 2 | iOS IPA 배포 빌드 (Phase 4) | 프로비저닝 프로파일, 서명 설정 |
+| 3 | iOS FCM 푸시 (Phase 2) | GoogleService-Info.plist, APNs |
 
 ---
 
@@ -80,9 +81,11 @@
 
 | 문서 | 용도 |
 |------|------|
+| IOS_BUILD_DEVELOPMENT_GUIDE.md | **iOS 빌드 개발 가이드** (AI 개발용, Capacitor 표준) |
 | DEV_SPEC.md | 구현 명세, API, 빌드 절차 |
 | BUILD_ENVIRONMENT.md | Java, Android SDK, Keystore 검증 |
 | ENVIRONMENT_SETUP.md | nginx, 로컬 실행 방식 |
 | DATABASE.md | 데이터베이스 테이블 |
 | CAPACITOR_LEARNING.md | Capacitor 기능, 플러그인, iOS 확장 참고 |
-| FCM_WEB_DEVELOPER_GUIDE.md | **고객용** FCM 푸시 연동 가이드 (웹 개발자 요구사항) |
+| FCM_WEB_DEVELOPER_GUIDE.md | **고객용** FCM 푸시 연동 가이드 (Android, 웹 개발자 요구사항) |
+| FCM_IOS_WEB_DEVELOPER_GUIDE.md | **고객용** FCM 푸시 연동 가이드 (iOS, 웹 개발자 요구사항) |

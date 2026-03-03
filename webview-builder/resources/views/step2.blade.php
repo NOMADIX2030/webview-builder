@@ -32,9 +32,10 @@
             @enderror
         </div>
 
+        @if(in_array('android', $platforms ?? []))
         <div>
             <label for="package_id" class="mb-1 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                패키지 ID
+                패키지 ID (Android)
                 <span class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400">자동 생성됨</span>
             </label>
             <input type="text" name="package_id" id="package_id" value="{{ old('package_id', $step2['package_id'] ?? '') }}"
@@ -46,6 +47,24 @@
                 <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
             @enderror
         </div>
+        @endif
+
+        @if(in_array('ios', $platforms ?? []))
+        <div>
+            <label for="bundle_id" class="mb-1 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Bundle ID (iOS)
+                <span class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400">자동 생성됨</span>
+            </label>
+            <input type="text" name="bundle_id" id="bundle_id" value="{{ old('bundle_id', $step2['bundle_id'] ?? $step2['package_id'] ?? '') }}"
+                placeholder="com.myplatform.app"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white font-mono"
+                required>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">iOS 앱 식별자 (패키지 ID와 동일하게 사용 가능)</p>
+            @error('bundle_id')
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+            @enderror
+        </div>
+        @endif
 
         <div>
             <label for="privacy_policy_url" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">개인정보처리방침 URL</label>
@@ -69,8 +88,9 @@
             @enderror
         </div>
 
+        @if(in_array('android', $platforms ?? []))
         <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-600">
-            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">FCM 푸시 알림 (선택)</label>
+            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">FCM 푸시 알림 (Android, 선택)</label>
             <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">앱이 백그라운드일 때도 알림을 받으려면 Firebase 프로젝트의 google-services.json을 등록하세요. 패키지 ID와 Firebase 등록 패키지가 일치해야 합니다.</p>
             <label class="mb-3 flex items-center gap-2">
                 <input type="checkbox" name="fcm_enabled" value="1"
@@ -99,7 +119,7 @@
         </div>
 
         <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-600">
-            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">추가 권한 (선택)</label>
+            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">추가 권한 (Android, 선택)</label>
             <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">웹에서 사용하는 기능에 따라 필요한 권한을 선택하세요.</p>
             <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 @foreach([
@@ -124,6 +144,7 @@
                 @endforeach
             </div>
         </div>
+        @endif
 
         <div class="grid grid-cols-2 gap-4">
             <div>
@@ -161,6 +182,7 @@
     </form>
 </div>
 
+@if(in_array('android', $platforms ?? []))
 @push('scripts')
 <script>
 (function() {
@@ -168,14 +190,17 @@
     var fileWrap = document.getElementById('fcm-file-wrap');
     var fileInput = document.getElementById('google_services_json');
     var hasPrevFile = {{ !empty($step2['google_services_path'] ?? null) ? 'true' : 'false' }};
-    function update() {
-        var checked = fcmCb?.checked;
-        fileWrap?.classList.toggle('hidden', !checked);
-        fileInput.required = checked && !hasPrevFile;
+    if (fcmCb && fileWrap) {
+        function update() {
+            var checked = fcmCb.checked;
+            fileWrap.classList.toggle('hidden', !checked);
+            if (fileInput) fileInput.required = checked && !hasPrevFile;
+        }
+        fcmCb.addEventListener('change', update);
+        update();
     }
-    fcmCb?.addEventListener('change', update);
-    update();
 })();
 </script>
 @endpush
+@endif
 @endsection

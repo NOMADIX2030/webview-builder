@@ -186,6 +186,7 @@ class BuildController extends Controller
 
         $mimeType = match ($type) {
             'apk' => 'application/vnd.android.package-archive',
+            'ipa' => str_ends_with($path, '.zip') ? 'application/zip' : 'application/octet-stream',
             default => 'application/octet-stream',
         };
 

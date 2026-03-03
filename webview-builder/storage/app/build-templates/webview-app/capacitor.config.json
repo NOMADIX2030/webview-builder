@@ -4,6 +4,23 @@
   "webDir": "www",
   "server": {
     "url": "{{WEB_URL}}",
-    "cleartext": true
+    "cleartext": true,
+    "allowNavigation": [
+      "kauth.kakao.com",
+      "kapi.kakao.com",
+      "accounts.kakao.com",
+      "accounts.google.com",
+      "www.google.com",
+      "nid.naver.com",
+      "naver.com",
+      "www.facebook.com",
+      "facebook.com",
+      "appleid.apple.com",
+      "apple.com",
+      "{{APP_HOST}}"
+    ]
+  },
+  "ios": {
+    "contentInset": "never"
   }
 }

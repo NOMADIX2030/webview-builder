@@ -6,24 +6,21 @@
 <div class="flex w-full max-w-md flex-col gap-6">
     <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <div class="mb-6">
-            <h1 class="text-xl font-semibold text-gray-900 dark:text-white">3단계 — 시뮬레이션 + 최종 확인</h1>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">앱 미리보기와 요약 정보를 확인한 뒤 빌드를 시작해 주세요.</p>
+            <h1 class="text-xl font-semibold text-gray-900 dark:text-white">3단계 — 최종 확인</h1>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">요약 정보를 확인한 뒤 빌드를 시작해 주세요.</p>
         </div>
 
-        {{-- 앱 미리보기 (간단한 iframe) --}}
-        <div class="mb-6 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
-            <div class="border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                {{ $step2['app_name'] }} 미리보기
-            </div>
-            <div class="aspect-[9/16] max-h-[400px] bg-white dark:bg-gray-800">
-                <iframe src="{{ $step1['web_url'] }}" title="웹 미리보기"
-                    class="h-full w-full border-0"
-                    sandbox="allow-scripts allow-same-origin"></iframe>
-            </div>
-        </div>
-
+        @php $platforms = $step1['platforms'] ?? ['android']; @endphp
         <div class="mb-6 border-t border-gray-200 pt-6 dark:border-gray-600">
-            <h4 class="mb-2 text-sm font-medium text-gray-900 dark:text-white">APK에 적용될 앱 아이콘</h4>
+            <h4 class="mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                @if(in_array('android', $platforms) && in_array('ios', $platforms))
+                    APK·iOS 앱에 적용될 아이콘
+                @elseif(in_array('ios', $platforms))
+                    iOS 앱에 적용될 아이콘
+                @else
+                    APK에 적용될 앱 아이콘
+                @endif
+            </h4>
             <p class="mb-4 text-xs text-gray-500 dark:text-gray-400">앱에서 보이는 모습과 동일합니다. 확인 후 빌드를 시작하세요.</p>
             <div class="flex items-center gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/50">
                 <div class="size-20 overflow-hidden rounded-[22%] bg-white shadow-sm ring-1 ring-gray-200 dark:ring-gray-600"
@@ -41,15 +38,26 @@
 
         <div class="mb-6 border-t border-gray-200 pt-6 dark:border-gray-600">
             <h4 class="mb-3 text-sm font-medium text-gray-900 dark:text-white">요약 정보</h4>
+            @if(count($platforms) > 0)
+                <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">빌드 플랫폼: {{ implode(', ', array_map(fn($p) => $p === 'android' ? 'Android APK' : 'iOS IPA', $platforms)) }}</p>
+            @endif
             <dl class="grid gap-2 text-sm">
                 <div class="flex justify-between">
                     <dt class="text-gray-500 dark:text-gray-400">앱 이름</dt>
                     <dd class="text-gray-900 dark:text-white">{{ $step2['app_name'] }}</dd>
                 </div>
+                @if(in_array('android', $platforms))
                 <div class="flex justify-between">
                     <dt class="text-gray-500 dark:text-gray-400">패키지 ID</dt>
                     <dd class="break-all font-mono text-xs text-gray-900 dark:text-white">{{ $step2['package_id'] }}</dd>
                 </div>
+                @endif
+                @if(in_array('ios', $platforms))
+                <div class="flex justify-between">
+                    <dt class="text-gray-500 dark:text-gray-400">Bundle ID</dt>
+                    <dd class="break-all font-mono text-xs text-gray-900 dark:text-white">{{ $step2['bundle_id'] ?? $step2['package_id'] }}</dd>
+                </div>
+                @endif
                 <div class="flex justify-between">
                     <dt class="text-gray-500 dark:text-gray-400">웹 URL</dt>
                     <dd class="break-all text-xs text-gray-900 dark:text-white">{{ $step1['web_url'] }}</dd>
@@ -58,8 +66,9 @@
                     <dt class="text-gray-500 dark:text-gray-400">버전</dt>
                     <dd class="text-gray-900 dark:text-white">{{ $step2['version_name'] }} ({{ $step2['version_code'] }})</dd>
                 </div>
+                @if(in_array('android', $platforms))
                 <div class="flex flex-col gap-1 border-t border-gray-200 pt-2 dark:border-gray-600" style="grid-column: 1 / -1;">
-                    <dt class="text-gray-500 dark:text-gray-400">권한</dt>
+                    <dt class="text-gray-500 dark:text-gray-400">권한 (Android)</dt>
                     <dd class="text-gray-900 dark:text-white text-xs">
                         <p>기본: 저장소, 알림</p>
                         @if(!empty($step2['extra_permissions'] ?? []))
@@ -85,6 +94,7 @@
                         @endif
                     </dd>
                 </div>
+                @endif
             </dl>
         </div>
 

@@ -30,6 +30,8 @@ class BuildController extends Controller
             'app_type' => ['required', 'in:webview'],
             'app_icon' => ['required', 'file', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
             'splash' => ['nullable', 'file', 'mimes:png,jpg,jpeg', 'max:5120'],
+            'platforms' => ['required', 'array', 'min:1'],
+            'platforms.*' => ['string', 'in:android,ios'],
         ]);
 
         $iconPath = $request->file('app_icon')->store('uploads/' . Str::random(8), 'public');
@@ -37,12 +39,18 @@ class BuildController extends Controller
             ? $request->file('splash')->store('uploads/' . Str::random(8), 'public')
             : null;
 
+        $platforms = array_values(array_unique(array_intersect($validated['platforms'] ?? [], ['android', 'ios'])));
+        if (empty($platforms)) {
+            return redirect()->back()->withErrors(['platforms' => '최소 1개 플랫폼을 선택해 주세요.'])->withInput();
+        }
+
         session([
             'build_step1' => [
                 'web_url' => $validated['web_url'],
                 'app_type' => $validated['app_type'],
                 'app_icon_path' => $iconPath,
                 'splash_image_path' => $splashPath,
+                'platforms' => $platforms,
             ],
         ]);
 
@@ -60,6 +68,7 @@ class BuildController extends Controller
         $step2 = session('build_step2', [
             'app_name' => $generated['appName'],
             'package_id' => $generated['packageId'],
+            'bundle_id' => $generated['bundleId'] ?? $generated['packageId'],
             'privacy_policy_url' => $generated['privacyPolicyUrl'],
             'support_url' => $generated['supportUrl'],
             'version_name' => $generated['versionName'],
@@ -73,6 +82,7 @@ class BuildController extends Controller
         return view('step2', [
             'step1' => $step1,
             'step2' => $step2,
+            'platforms' => $step1['platforms'] ?? ['android'],
         ]);
     }
 
@@ -83,9 +93,10 @@ class BuildController extends Controller
             return redirect()->route('build.step1');
         }
 
+        $platforms = $step1['platforms'] ?? ['android'];
         $rules = [
             'app_name' => ['required', 'string', 'max:255'],
-            'package_id' => ['required', 'string', 'max:255'],
+            'package_id' => [in_array('android', $platforms) ? 'required' : 'nullable', 'string', 'max:255'],
             'privacy_policy_url' => ['required', 'url'],
             'support_url' => ['required', 'url'],
             'version_name' => ['required', 'string', 'max:50'],
@@ -94,6 +105,9 @@ class BuildController extends Controller
             'extra_permissions.*' => ['string', 'in:CAMERA,RECORD_AUDIO,READ_CONTACTS,WRITE_CONTACTS,CALL_PHONE,READ_CALENDAR,WRITE_CALENDAR,SEND_SMS,RECEIVE_SMS,BLUETOOTH_CONNECT'],
             'fcm_enabled' => ['nullable'],
         ];
+        if (in_array('ios', $platforms)) {
+            $rules['bundle_id'] = ['required', 'string', 'max:255', 'regex:/^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*)+$/'];
+        }
         $prevStep2 = session('build_step2', []);
         $fcmEnabled = $request->boolean('fcm_enabled');
         $hasNewFile = $request->hasFile('google_services_json');
@@ -107,6 +121,14 @@ class BuildController extends Controller
 
         $validated['extra_permissions'] = $validated['extra_permissions'] ?? [];
         $validated['fcm_enabled'] = $fcmEnabled;
+        $validated['bundle_id'] = in_array('ios', $platforms)
+            ? ($validated['bundle_id'] ?? $validated['package_id'] ?? 'com.app.app')
+            : ($validated['package_id'] ?? 'com.app.app');
+        if (in_array('ios', $platforms) && ! in_array('android', $platforms)) {
+            $validated['package_id'] = $validated['bundle_id'];
+        } elseif (empty($validated['package_id'] ?? null) && in_array('ios', $platforms)) {
+            $validated['package_id'] = $validated['bundle_id'];
+        }
         $validated['google_services_path'] = null;
         $validated['fcm_click_url_key'] = $request->filled('fcm_click_url_key')
             ? preg_replace('/[^a-zA-Z0-9_-]/', '', $request->input('fcm_click_url_key'))
@@ -165,6 +187,8 @@ class BuildController extends Controller
             'app_icon_path' => $step1['app_icon_path'],
             'splash_image_path' => $step1['splash_image_path'],
             'config_json' => [
+                'platforms' => $step1['platforms'] ?? ['android'],
+                'bundle_id' => $step2['bundle_id'] ?? $step2['package_id'],
                 'extra_permissions' => $step2['extra_permissions'] ?? [],
                 'fcm_enabled' => $step2['fcm_enabled'] ?? false,
                 'google_services_path' => $step2['google_services_path'] ?? null,
@@ -204,9 +228,11 @@ class BuildController extends Controller
             default => 0,
         };
 
+        $platforms = $build->config_json['platforms'] ?? ['android'];
+        $buildLabel = count($platforms) > 1 ? 'Android·iOS' : (in_array('ios', $platforms) ? 'iOS' : 'Android');
         $message = match ($build->status) {
             'queued' => '대기 중...',
-            'building' => 'Android 빌드 중...',
+            'building' => "{$buildLabel} 빌드 중...",
             'completed' => '빌드가 완료되었습니다.',
             'failed' => $build->error_message ?? '빌드에 실패했습니다.',
             default => '',
