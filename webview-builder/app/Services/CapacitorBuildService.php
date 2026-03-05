@@ -130,6 +130,7 @@ class CapacitorBuildService
         $this->injectConfig($projectPath, $build);
 
         if (in_array('android', $platforms)) {
+            $this->injectSplashConfig($projectPath, $build);
             $this->injectAppDomainToOAuthWebViewClient($projectPath, $build);
             $this->injectExtraPermissions($projectPath, $build);
             $this->copyGoogleServicesJson($projectPath, $build);
@@ -160,6 +161,7 @@ class CapacitorBuildService
         }
 
         if (in_array('ios', $platforms)) {
+            $this->injectSplashConfigIos($projectPath, $build);
             $this->injectConfigIos($projectPath, $build);
             $this->runCapSync($projectPath, 'ios');
             $ipaPath = $this->runIosBuild($projectPath, $buildDir);
@@ -252,6 +254,103 @@ class CapacitorBuildService
             $content = preg_replace('/CURRENT_PROJECT_VERSION = \d+;/', 'CURRENT_PROJECT_VERSION = ' . $build->version_code . ';', $content);
             File::put($pbxPath, $content);
         }
+    }
+
+    /**
+     * 스플래시 업로드 여부에 따라 테마·설정 주입.
+     * 업로드 있음: AppTheme.NoActionBarLaunch (스플래시 표시)
+     * 업로드 없음: AppTheme.NoActionBar (즉시 앱 실행)
+     */
+    private function injectSplashConfig(string $projectPath, Build $build): void
+    {
+        $hasSplash = ! empty($build->splash_image_path);
+        $themeName = $hasSplash ? 'AppTheme.NoActionBarLaunch' : 'AppTheme.NoActionBar';
+
+        $manifestPath = "{$projectPath}/android/app/src/main/AndroidManifest.xml";
+        if (File::exists($manifestPath)) {
+            $content = File::get($manifestPath);
+            $content = str_replace('{{SPLASH_THEME_NAME}}', $themeName, $content);
+            File::put($manifestPath, $content);
+        }
+
+        if ($hasSplash) {
+            $this->copySplash($projectPath, $build);
+        }
+    }
+
+    /**
+     * 스플래시 이미지를 Android drawable에 복사.
+     */
+    private function copySplash(string $projectPath, Build $build): void
+    {
+        $splashPath = $this->resolveIconPath($build->splash_image_path);
+        if (! $splashPath || ! File::exists($splashPath)) {
+            return;
+        }
+
+        $drawablePath = "{$projectPath}/android/app/src/main/res/drawable";
+        File::ensureDirectoryExists($drawablePath);
+        $destPath = "{$drawablePath}/splash.png";
+
+        if (! $this->copyOrConvertToPng($splashPath, $destPath)) {
+            File::copy($splashPath, $destPath);
+        }
+
+        $densityDirs = [
+            'drawable-port-mdpi', 'drawable-port-hdpi', 'drawable-port-xhdpi', 'drawable-port-xxhdpi', 'drawable-port-xxxhdpi',
+            'drawable-land-mdpi', 'drawable-land-hdpi', 'drawable-land-xhdpi', 'drawable-land-xxhdpi', 'drawable-land-xxxhdpi',
+        ];
+        foreach ($densityDirs as $dir) {
+            $targetDir = "{$projectPath}/android/app/src/main/res/{$dir}";
+            if (File::isDirectory($targetDir)) {
+                $targetFile = "{$targetDir}/splash.png";
+                $this->copyOrConvertToPng($splashPath, $targetFile) || File::copy($splashPath, $targetFile);
+            }
+        }
+    }
+
+    /**
+     * iOS 스플래시: 업로드 있으면 복사, 없으면 흰색 빈 이미지로 즉시 전환.
+     */
+    private function injectSplashConfigIos(string $projectPath, Build $build): void
+    {
+        $splashImageset = "{$projectPath}/ios/App/App/Assets.xcassets/Splash.imageset";
+        if (! File::isDirectory($splashImageset)) {
+            return;
+        }
+
+        $hasSplash = ! empty($build->splash_image_path);
+        if ($hasSplash) {
+            $splashPath = $this->resolveIconPath($build->splash_image_path);
+            if ($splashPath && File::exists($splashPath)) {
+                $this->copyOrConvertToPng($splashPath, "{$splashImageset}/splash-2732x2732.png");
+                File::copy("{$splashImageset}/splash-2732x2732.png", "{$splashImageset}/splash-2732x2732-1.png");
+                File::copy("{$splashImageset}/splash-2732x2732.png", "{$splashImageset}/splash-2732x2732-2.png");
+            }
+        } else {
+            $blankPath = $this->createBlankSplashImage();
+            if ($blankPath) {
+                foreach (['splash-2732x2732.png', 'splash-2732x2732-1.png', 'splash-2732x2732-2.png'] as $f) {
+                    File::copy($blankPath, "{$splashImageset}/{$f}");
+                }
+                @unlink($blankPath);
+            }
+        }
+    }
+
+    private function createBlankSplashImage(): ?string
+    {
+        $tmp = tempnam(sys_get_temp_dir(), 'splash_') . '.png';
+        $img = @imagecreatetruecolor(32, 32);
+        if (! $img) {
+            return null;
+        }
+        $white = imagecolorallocate($img, 255, 255, 255);
+        imagefill($img, 0, 0, $white);
+        imagepng($img, $tmp, 9);
+        imagedestroy($img);
+
+        return file_exists($tmp) ? $tmp : null;
     }
 
     /**

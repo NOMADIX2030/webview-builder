@@ -5,6 +5,16 @@
   "android": {
     "adjustMarginsForEdgeToEdge": "disable"
   },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "launchShowDuration": 0,
+      "launchFadeOutDuration": 300,
+      "backgroundColor": "#ffffff",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP"
+    }
+  },
   "server": {
     "url": "{{WEB_URL}}",
     "cleartext": true,

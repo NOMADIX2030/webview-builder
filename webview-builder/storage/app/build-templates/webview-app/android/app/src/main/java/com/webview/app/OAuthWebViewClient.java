@@ -21,6 +21,9 @@ public class OAuthWebViewClient extends WebViewClient {
         "window.saveImageToDevice=function(url,name){if(typeof AndroidBridge!=='undefined'&&AndroidBridge.saveDataUrl)" +
         "AndroidBridge.saveDataUrl(url,name||'image.png');};})();";
 
+    /** @capacitor/splash-screen: 웹 로딩 완료 시 스플래시 숨김 (자연스러운 페이드아웃) */
+    private static final String JS_SPLASH_HIDE = "(function(){try{var s=window.Capacitor&&(window.Capacitor.Plugins&&(window.Capacitor.Plugins.SplashScreen||window.Capacitor.Plugins['SplashScreen']));if(s&&typeof s.hide==='function')s.hide({fadeOutDuration:300});}catch(e){}})();";
+
     /** blob 훅 + blob/data: 링크 클릭 가로채기. DownloadListener 미호출. (iframe은 복잡한 이스케이프로 제외) */
     private static final String JS_BLOB_HOOK = "(function(){if(window.__blobHookInstalled)return;" +
         "window.__blobHookInstalled=true;" +
@@ -50,6 +53,9 @@ public class OAuthWebViewClient extends WebViewClient {
     private static final String APP_BASE_URL = "{{APP_BASE_URL}}";
 
     private final WebViewClient delegate;
+
+    /** 스플래시 hide는 첫 페이지 로드 시 1회만 실행 */
+    private static volatile boolean splashHidden = false;
 
     public OAuthWebViewClient(WebViewClient delegate) {
         this.delegate = delegate;
@@ -118,6 +124,17 @@ public class OAuthWebViewClient extends WebViewClient {
     public void onPageFinished(WebView view, String url) {
         if (delegate != null) {
             delegate.onPageFinished(view, url);
+        }
+        if (!splashHidden && url != null && !url.isEmpty() && !url.startsWith("about:")) {
+            long launchTime = MainActivity.splashLaunchTime;
+            long elapsed = System.currentTimeMillis() - (launchTime > 0 ? launchTime : System.currentTimeMillis());
+            long remaining = Math.max(0, 2000 - elapsed);
+            view.postDelayed(() -> {
+                if (!splashHidden) {
+                    view.evaluateJavascript(JS_SPLASH_HIDE, null);
+                    splashHidden = true;
+                }
+            }, remaining);
         }
         view.evaluateJavascript(JS_SAVE_IMAGE_BRIDGE, null);
         view.evaluateJavascript(JS_BLOB_HOOK, null);

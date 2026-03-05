@@ -84,6 +84,7 @@
 
         <div>
             <label for="splash" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">스플래시 이미지 (선택)</label>
+            <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">앱 첫 로딩 시 표시. Android: 2732×2732 px / iOS: 2732×2732 px 이상 권장 (정사각형, PNG/JPG)</p>
             <input type="file" name="splash" id="splash" accept="image/png,image/jpeg,image/jpg"
                 class="block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium dark:file:bg-gray-700 dark:file:text-gray-300">
         </div>

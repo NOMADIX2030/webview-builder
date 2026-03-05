@@ -13,17 +13,17 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
-        <!-- Edge-to-edge: 상태바 투명, 콘텐츠가 상태바 영역까지 확장 -->
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- 정상: 상태바 표시 (숨김 시에는 코드에서 제어) -->
+        <item name="android:statusBarColor">@android:color/black</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
 
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
-        <!-- Edge-to-edge: 스플래시도 상태바 영역까지 확장 -->
-        <item name="android:statusBarColor">@android:color/transparent</item>
+        <!-- 정상: 스플래시 시 상태바 표시 -->
+        <item name="android:statusBarColor">@android:color/black</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
 </resources>

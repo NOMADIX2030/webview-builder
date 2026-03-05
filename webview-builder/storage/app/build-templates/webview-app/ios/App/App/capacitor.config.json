@@ -2,6 +2,14 @@
 	"appId": "com.webview.app",
 	"appName": "WebviewApp",
 	"webDir": "www",
+	"plugins": {
+		"SplashScreen": {
+			"launchAutoHide": false,
+			"launchShowDuration": 0,
+			"launchFadeOutDuration": 300,
+			"backgroundColor": "#ffffff"
+		}
+	},
 	"server": {
 		"url": "{{WEB_URL}}",
 		"cleartext": true,

@@ -1,6 +1,6 @@
 # 프로젝트 현황
 
-> **최종 업데이트**: 2026년 3월 3일 (iOS 카카오 로그인 인앱 처리 검증 완료)
+> **최종 업데이트**: 2026년 3월 6일 (스플래시 조건부, 상태바 복원, core-splashscreen 1.0.1)
 
 ---
 
@@ -33,6 +33,8 @@
 | **뒤로가기** | `goBack()` → 서브 경로면 origin 이동 → 루트에서 뒤로가기 2회 연속 시 종료 (알림 없음, 2초 이내) | 앱 내 이전 페이지 이동 + 이중 클릭 종료 |
 | **OAuth/소셜 로그인** | 카카오·구글·네이버 등 OAuth URL을 WebView 내에서 로드 (외부 브라우저 이탈 방지) | Android: OAuthWebViewClient (API 26+). iOS: server.allowNavigation — **카카오 로그인 검증 완료** |
 | **앱 도메인 URL** | OAuthWebViewClient에서 앱 서버 도메인(web_url) URL도 WebView 내 로드 | FCM 채팅 등 동일 도메인 링크가 브라우저로 열리지 않음 |
+| **스플래시 조건부** | 업로드 시에만 Launch 테마·스플래시 표시, 미업로드 시 즉시 앱 실행 | injectSplashConfig, copySplash, injectSplashConfigIos |
+| **상태바** | Android 시스템 기본 상단 트레이 정상 표시 (시간·배터리·알림) | setDecorFitsSystemWindows(true) |
 | **window.open 처리** | WebChromeClient.onCreateWindow로 target="_blank" 시 부모 WebView에 로드 | 외부 브라우저 이탈 방지 |
 | **PDF/이미지 저장** | DownloadListener → PDF는 Downloads, 이미지는 Pictures(갤러리). blob URL: 훅+이중전략+클릭가로채기 (optiflow 등) | WRITE_EXTERNAL_STORAGE, READ_MEDIA_IMAGES (API 33+) |
 | **아이콘 생성** | `@capacitor/assets` 1차 시도, 실패 시 PHP GD 폴백 | `npx @capacitor/assets generate --android` |
@@ -64,6 +66,18 @@
 | 이슈 | 설명 | 우선순위 |
 |------|------|----------|
 | 3단계 아이콘 미리보기 | 기기별 마스크(원형/스쿼시클/둥근 사각형)로 100% 일치 불가 | 낮음 (90% 이상 동일로 검증 완료) |
+| Android 12+ 스플래시 | OS 강제로 앱 아이콘 스플래시 0.2~0.5초 표시, 커스텀 풀스크린 제어 불가 | 낮음 (OS 정책) |
+
+### 1.5 2026-03-06 변경 사항
+
+| 항목 | 내용 |
+|------|------|
+| 스플래시 조건부 | 업로드 있음: AppTheme.NoActionBarLaunch + copySplash. 없음: AppTheme.NoActionBar (즉시 실행) |
+| iOS 스플래시 | injectSplashConfigIos: 업로드 시 Splash.imageset 복사, 없으면 흰색 빈 이미지 |
+| 스플래시 최소 시간 | max(2초, 페이지 로드) — OAuthWebViewClient postDelayed |
+| 상태바 복원 | Edge-to-edge 숨김 제거 → 기본 상태바 표시 |
+| core-splashscreen | 1.0.1 (compileSdk 34, AGP 8.2.1 호환) |
+| @capacitor/splash-screen | ^6.0.1 추가, launchAutoHide: false |
 
 ---
 
@@ -89,3 +103,6 @@
 | CAPACITOR_LEARNING.md | Capacitor 기능, 플러그인, iOS 확장 참고 |
 | FCM_WEB_DEVELOPER_GUIDE.md | **고객용** FCM 푸시 연동 가이드 (Android, 웹 개발자 요구사항) |
 | FCM_IOS_WEB_DEVELOPER_GUIDE.md | **고객용** FCM 푸시 연동 가이드 (iOS, 웹 개발자 요구사항) |
+| SPLASH_SCREEN_ANALYSIS.md | 스플래시 조건부, 최소 표시 시간, Android 12+ 제한 |
+| STATUS_BAR_ANALYSIS.md | 상태바 복원, Android 12+ 분석 |
+| ANDROID_BUILD_VERSIONS.md | compileSdk, AGP, Capacitor 6 요구사항 |

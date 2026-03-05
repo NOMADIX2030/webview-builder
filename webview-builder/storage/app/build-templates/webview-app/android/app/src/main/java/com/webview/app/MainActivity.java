@@ -15,8 +15,6 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.WindowCompat;
-import androidx.core.view.WindowInsetsCompat;
-import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
 import java.util.ArrayList;
@@ -26,6 +24,9 @@ public class MainActivity extends BridgeActivity {
 
     private static final long BACK_PRESS_INTERVAL_MS = 2000;
     private static final int PERMISSION_REQUEST_ALL = 1001;
+
+    /** 스플래시 최소 표시 시간 계산용 (앱 시작 시점). OAuthWebViewClient에서 max(2초, 페이지로드) 적용. */
+    public static long splashLaunchTime = 0;
 
     /** 2단계에서 선택한 추가 권한 (빌드 시 주입) */
     private static final String[] EXTRA_PERMISSIONS = {{EXTRA_PERMISSIONS_ARRAY}};
@@ -37,13 +38,10 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        splashLaunchTime = System.currentTimeMillis();
         super.onCreate(savedInstanceState);
-        // Edge-to-edge: 헤더가 상단 엣지까지 붙음. 상태바(시간·배터리) 숨김.
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-        WindowInsetsControllerCompat compat = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        if (compat != null) {
-            compat.hide(WindowInsetsCompat.Type.statusBars());
-        }
+        // 기본: 상태바 표시 (시스템 상단 트레이 정상 출력)
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         requestRequiredPermissions();
         {{FCM_INIT_BLOCK}}
         installWebViewHandlers();
