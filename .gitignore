@@ -47,3 +47,4 @@ webview-builder/bootstrap/cache/*.php
 
 # ----- 임시
 .tmp-cap-template/
+tmp/

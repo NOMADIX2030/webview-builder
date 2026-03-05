@@ -1,6 +1,6 @@
 # 프로젝트 현황
 
-> **최종 업데이트**: 2026년 3월 6일 (시스템 바 색상 선택 옵션 추가)
+> **최종 업데이트**: 2026년 3월 6일 (문서 추가: 앱링크 확장, 네이티브 하단탭바 개발예정안)
 
 ---
 
@@ -91,6 +91,7 @@
 | 1 | iOS 시뮬레이터 빌드 검증 | Phase 1 구현 완료, Xcode 환경에서 테스트 |
 | 2 | iOS IPA 배포 빌드 (Phase 4) | 프로비저닝 프로파일, 서명 설정 |
 | 3 | iOS FCM 푸시 (Phase 2) | GoogleService-Info.plist, APNs |
+| 4 | 네이티브 하단 탭바 (개발 예정) | 하단 네비 없는 웹용 옵션, SVG 아이콘 입력 |
 
 ---
 
@@ -110,3 +111,8 @@
 | SPLASH_SCREEN_ANALYSIS.md | 스플래시 조건부, 최소 표시 시간, Android 12+ 제한 |
 | STATUS_BAR_ANALYSIS.md | 상태바 복원, Android 12+ 분석 |
 | ANDROID_BUILD_VERSIONS.md | compileSdk, AGP, Capacitor 6 요구사항 |
+| 안드로이드_실기기_테스트_가이드.md | ADB 연결, App Links 검증, logcat 실시간 분석 |
+| iOS_개발테스트_환경구축_가이드.md | Apple Developer 가입, 시뮬레이터·실기기 테스트 |
+| FCM_푸시알림_클릭_이슈_분석.md | FCM 클릭 시 관리자 페이지 이동 이슈 원인·해결 |
+| 앱링크_딥링크_확장기능_가이드.md | App Links 활용: QR, 소셜 로그인, 네이티브 기능 트리거 |
+| 네이티브_하단탭바_개발예정안.md | **개발 예정** 하단 탭바 옵션 명세 (SVG 아이콘, Phase 계획) |
