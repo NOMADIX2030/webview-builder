@@ -28,6 +28,9 @@ public class MainActivity extends BridgeActivity {
     /** 스플래시 최소 표시 시간 계산용 (앱 시작 시점). OAuthWebViewClient에서 max(2초, 페이지로드) 적용. */
     public static long splashLaunchTime = 0;
 
+    /** FCM 수신 시 WebView에 __onPushReceived 주입용. onResume~onPause 구간에서만 non-null. */
+    private static MainActivity sInstance = null;
+
     /** 2단계에서 선택한 추가 권한 (빌드 시 주입) */
     private static final String[] EXTRA_PERMISSIONS = {{EXTRA_PERMISSIONS_ARRAY}};
 
@@ -96,6 +99,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onResume() {
         super.onResume();
+        sInstance = this;
         installWebViewHandlers();
         {{FCM_RESUME_HANDLER}}
     }
@@ -103,7 +107,34 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onPause() {
         super.onPause();
+        sInstance = null;
         CookieManager.getInstance().flush();
+    }
+
+    {{APP_LINKS_NEW_INTENT}}
+
+    /**
+     * FCM data 수신 시 WebView에 window.__onPushReceived(data) 주입.
+     * 앱이 포그라운드일 때만 동작. 웹에서 배지 등 실시간 갱신에 사용.
+     */
+    public static void notifyWebViewOfPushReceived(java.util.Map<String, String> data) {
+        if (data == null || sInstance == null) return;
+        Bridge bridge = sInstance.getBridge();
+        if (bridge == null) return;
+        WebView wv = bridge.getWebView();
+        if (wv == null) return;
+        String unreadCount = data.containsKey("unread_count") ? data.get("unread_count") : "0";
+        if (unreadCount == null) unreadCount = "0";
+        String title = data.containsKey("title") ? data.get("title") : "";
+        if (title == null) title = "";
+        String body = data.containsKey("body") ? data.get("body") : "";
+        if (body == null) body = "";
+        String type = data.containsKey("type") ? data.get("type") : "";
+        if (type == null) type = "";
+        String js = "if(window.__onPushReceived){window.__onPushReceived({unread_count:'"
+            + escapeForJs(unreadCount) + "',title:'" + escapeForJs(title)
+            + "',body:'" + escapeForJs(body) + "',type:'" + escapeForJs(type) + "'});}";
+        wv.post(() -> wv.evaluateJavascript(js, null));
     }
 
     @Override

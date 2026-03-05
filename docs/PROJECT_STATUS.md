@@ -46,6 +46,7 @@
 | **알림 아이콘** | 앱 아이콘에서 흰색 실루엣 자동 생성 → 트레이에 앱 로고 표시 | FCM 사용 + 앱 아이콘 업로드 시 |
 | **헤드업 알림** | IMPORTANCE_HIGH, PRIORITY_HIGH → 소리·진동·화면 상단 실시간 알림 카드 | Android 5.0+ |
 | **알림 탭 시 URL** | 포그라운드: fcm_click_url / 백그라운드: data 키(action_url) → WebView.loadUrl | FCM notification+data 시 백그라운드 Intent 처리 |
+| **알림 배지 실시간 갱신** | FCM data 수신 시 `window.__onPushReceived(data)` 주입 (포그라운드만) | 폴링 없이 헤더 배지 등 즉시 갱신 |
 | **Cold start 세션 복원** | 앱 전용 인증 토큰(app-token/app-login) → SharedPreferences 저장, FCM 클릭 시 세션 복원 | 앱 재시작 후에도 로그인 유지 |
 | **redirect URL 인코딩** | FCM 클릭 시 action_url을 URL 인코딩하여 app-login/login에 전달 | `/chat?conversation=123` 등 쿼리 파라미터 정확 전달 |
 
@@ -104,6 +105,7 @@
 | DATABASE.md | 데이터베이스 테이블 |
 | CAPACITOR_LEARNING.md | Capacitor 기능, 플러그인, iOS 확장 참고 |
 | FCM_WEB_DEVELOPER_GUIDE.md | **고객용** FCM 푸시 연동 가이드 (Android, 웹 개발자 요구사항) |
+| FCM_PUSH_BADGE_UPDATE.md | FCM 알림 배지 실시간 갱신 (__onPushReceived) 적용 내역 |
 | FCM_IOS_WEB_DEVELOPER_GUIDE.md | **고객용** FCM 푸시 연동 가이드 (iOS, 웹 개발자 요구사항) |
 | SPLASH_SCREEN_ANALYSIS.md | 스플래시 조건부, 최소 표시 시간, Android 12+ 제한 |
 | STATUS_BAR_ANALYSIS.md | 상태바 복원, Android 12+ 분석 |

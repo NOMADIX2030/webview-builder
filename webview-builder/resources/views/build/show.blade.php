@@ -84,11 +84,50 @@
         </div>
     @endif
 
+    @if (!empty($assetLinksJson) && !empty($webHost))
+    <div class="mt-6 rounded-lg border border-blue-100 bg-blue-50 p-4 dark:border-blue-900/40 dark:bg-blue-900/10">
+        <h4 class="mb-1 text-sm font-semibold text-blue-800 dark:text-blue-300">App Links 설정 — 카카오 등 외부 앱 인증 후 자동 복귀</h4>
+        <p class="mb-3 text-xs text-blue-700 dark:text-blue-400">
+            아래 파일을 서버에 배포하면 카카오·구글 등 외부 앱 인증 완료 후 자동으로 이 앱으로 복귀합니다.
+        </p>
+        <p class="mb-1 text-xs font-medium text-blue-800 dark:text-blue-300">배포 경로</p>
+        <code class="mb-3 block rounded bg-blue-100 px-3 py-1.5 text-xs text-blue-900 dark:bg-blue-900/30 dark:text-blue-200">
+            https://{{ $webHost }}/.well-known/assetlinks.json
+        </code>
+        <p class="mb-1 text-xs font-medium text-blue-800 dark:text-blue-300">파일 내용 (복사해서 사용)</p>
+        <div class="relative">
+            <pre id="assetlinks-content" class="overflow-x-auto rounded bg-blue-100 px-3 py-2 text-xs text-blue-900 dark:bg-blue-900/30 dark:text-blue-200">{{ $assetLinksJson }}</pre>
+            <button onclick="copyAssetLinks()"
+                class="absolute right-2 top-2 rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700">
+                복사
+            </button>
+        </div>
+        <p class="mt-2 text-xs text-blue-600 dark:text-blue-400">
+            응답 헤더에 <code>Content-Type: application/json</code>이 설정되어야 합니다.
+        </p>
+    </div>
+    @endif
+
     <a href="{{ route('build.step1') }}"
-        class="block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
+        class="mt-4 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
         새 빌드 시작
     </a>
 </div>
+
+@push('scripts')
+<script>
+function copyAssetLinks() {
+    const el = document.getElementById('assetlinks-content');
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent.trim()).then(() => {
+        const btn = event.target;
+        const orig = btn.textContent;
+        btn.textContent = '복사됨';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
+}
+</script>
+@endpush
 
 @if (in_array($status['status'], ['queued', 'building']))
 @push('scripts')

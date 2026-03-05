@@ -9,13 +9,14 @@ use App\Services\BuildConfigService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class BuildController extends Controller
 {
     public function __construct(
-        private BuildConfigService $buildConfigService
+        private BuildConfigService $buildConfigService,
     ) {}
 
     public function step1(): View|RedirectResponse
@@ -252,6 +253,25 @@ class BuildController extends Controller
             $artifacts['keystore'] = url("/api/build/{$build->id}/download/keystore");
         }
 
+        // App Links용 assetlinks.json 내용 자동 생성
+        $assetLinksJson = null;
+        $platforms = $build->config_json['platforms'] ?? ['android'];
+        if ($build->status === 'completed' && in_array('android', $platforms) && $build->keystore_path) {
+            // keystore_path: "builds/{buildId}/release.keystore" → storage/app/builds/{buildId}/release.keystore
+            $keystoreAbsPath = storage_path('app/' . $build->keystore_path);
+            $sha256 = $this->extractKeystoreSha256($keystoreAbsPath);
+            if ($sha256) {
+                $assetLinksJson = json_encode([[
+                    'relation' => ['delegate_permission/common.handle_all_urls'],
+                    'target' => [
+                        'namespace' => 'android_app',
+                        'package_name' => $build->package_id,
+                        'sha256_cert_fingerprints' => [$sha256],
+                    ],
+                ]], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            }
+        }
+
         return view('build.show', [
             'build' => $build,
             'status' => [
@@ -263,6 +283,60 @@ class BuildController extends Controller
                 'createdAt' => $build->created_at?->toIso8601String(),
                 'completedAt' => $build->completed_at?->toIso8601String(),
             ],
+            'assetLinksJson' => $assetLinksJson,
+            'webHost' => parse_url($build->web_url, PHP_URL_HOST) ?: '',
         ]);
+    }
+
+    private function resolveKeytoolPath(): string
+    {
+        $candidates = [
+            '/usr/local/opt/openjdk@17/bin/keytool',
+            '/opt/homebrew/opt/openjdk@17/bin/keytool',
+            '/usr/local/opt/openjdk/bin/keytool',
+            '/opt/homebrew/opt/openjdk/bin/keytool',
+        ];
+        foreach ($candidates as $path) {
+            if (is_file($path) && is_executable($path)) {
+                return $path;
+            }
+        }
+
+        return 'keytool';
+    }
+
+    private function extractKeystoreSha256(string $keystorePath): ?string
+    {
+        if (! file_exists($keystorePath)) {
+            Log::warning('extractKeystoreSha256: keystore 파일 없음', ['path' => $keystorePath]);
+
+            return null;
+        }
+
+        $keytool = $this->resolveKeytoolPath();
+
+        $result = Process::run([
+            $keytool, '-list', '-v',
+            '-keystore', $keystorePath,
+            '-alias', 'webview-build',
+            '-storepass', 'webview123',
+            '-noprompt',
+        ]);
+
+        if (! $result->successful()) {
+            Log::warning('extractKeystoreSha256: keytool 실패', [
+                'path' => $keystorePath,
+                'keytool' => $keytool,
+                'stderr' => $result->errorOutput(),
+            ]);
+
+            return null;
+        }
+
+        if (preg_match('/SHA256:\s*([A-F0-9:]{95})/i', $result->output(), $m)) {
+            return $m[1];
+        }
+
+        return null;
     }
 }

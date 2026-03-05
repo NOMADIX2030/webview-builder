@@ -131,6 +131,7 @@ class CapacitorBuildService
 
         if (in_array('android', $platforms)) {
             $this->injectSplashConfig($projectPath, $build);
+            $this->injectAppLinks($projectPath, $build);
             $this->injectAppDomainToOAuthWebViewClient($projectPath, $build);
             $this->injectExtraPermissions($projectPath, $build);
             $this->copyGoogleServicesJson($projectPath, $build);
@@ -278,6 +279,70 @@ class CapacitorBuildService
         if ($hasSplash) {
             $this->copySplash($projectPath, $build);
         }
+    }
+
+    /**
+     * App Links intent-filter 주입.
+     * web_url host를 기반으로 AndroidManifest에 HTTPS deep link 수신용 intent-filter를 추가.
+     * autoVerify=true로 OS 자동 인증 요청 (서버에 .well-known/assetlinks.json 필요).
+     */
+    private function injectAppLinks(string $projectPath, Build $build): void
+    {
+        $host = parse_url($build->web_url, PHP_URL_HOST) ?: '';
+        if (! $host || ! preg_match('/^[a-zA-Z0-9][a-zA-Z0-9.\-]*[a-zA-Z0-9]$/', $host)) {
+            // 유효하지 않은 host → 플레이스홀더만 제거
+            $manifestPath = "{$projectPath}/android/app/src/main/AndroidManifest.xml";
+            if (File::exists($manifestPath)) {
+                $content = str_replace('{{APP_LINKS_INTENT_FILTER}}', '', File::get($manifestPath));
+                File::put($manifestPath, $content);
+            }
+            return;
+        }
+
+        $filter = <<<XML
+
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="{$host}" />
+            </intent-filter>
+XML;
+
+        $manifestPath = "{$projectPath}/android/app/src/main/AndroidManifest.xml";
+        if (File::exists($manifestPath)) {
+            $content = str_replace('{{APP_LINKS_INTENT_FILTER}}', $filter, File::get($manifestPath));
+            File::put($manifestPath, $content);
+        }
+    }
+
+    /**
+     * Keystore에서 SHA-256 fingerprint를 추출.
+     * 빌드 결과 화면에서 assetlinks.json 내용 자동 생성에 사용.
+     */
+    public function extractKeystoreSha256(string $keystorePath): ?string
+    {
+        if (! File::exists($keystorePath)) {
+            return null;
+        }
+
+        $result = Process::run([
+            'keytool', '-list', '-v',
+            '-keystore', $keystorePath,
+            '-alias', 'webview-build',
+            '-storepass', 'webview123',
+            '-noprompt',
+        ]);
+
+        if (! $result->successful()) {
+            return null;
+        }
+
+        if (preg_match('/SHA256:\s*([A-F0-9:]{95})/i', $result->output(), $m)) {
+            return $m[1];
+        }
+
+        return null;
     }
 
     /**
@@ -584,6 +649,10 @@ class CapacitorBuildService
         $content = str_replace('{{FCM_RESUME_HANDLER}}', $enabled ? 'handleFcmClickUrl();' : '', $content);
         $baseUrl = $enabled ? $this->getAppBaseUrl($build->web_url) : '';
         $content = str_replace('{{FCM_CLICK_HANDLER}}', $enabled ? $this->getFcmClickHandlerBlock($clickKey, $baseUrl) : '// FCM disabled', $content);
+        // FCM 활성화 시: FCM onNewIntent 안에서 App Links도 처리하므로 별도 블록 불필요
+        // FCM 비활성화 시: App Links 전용 onNewIntent 주입
+        $appLinksNewIntent = $enabled ? '' : $this->getAppLinksOnlyNewIntentBlock();
+        $content = str_replace('{{APP_LINKS_NEW_INTENT}}', $appLinksNewIntent, $content);
         File::put($path, $content);
     }
 
@@ -592,6 +661,28 @@ class CapacitorBuildService
         return <<<'JAVA'
         initFcmAndPassTokenToWeb();
         handleFcmClickUrl();
+JAVA;
+    }
+
+    /**
+     * FCM 미사용 빌드에서만 주입. App Links(딥링크) URL을 WebView로 로드.
+     * FCM 사용 빌드는 getFcmClickHandlerBlock()의 onNewIntent 안에서 처리.
+     */
+    private function getAppLinksOnlyNewIntentBlock(): string
+    {
+        return <<<'JAVA'
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        android.net.Uri data = intent.getData();
+        if (data == null) return;
+        String url = data.toString();
+        Bridge bridge = getBridge();
+        if (bridge == null) return;
+        android.webkit.WebView wv = bridge.getWebView();
+        if (wv != null) wv.post(() -> wv.loadUrl(url));
+    }
 JAVA;
     }
 
@@ -646,6 +737,19 @@ JAVA;
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        // App Links (카카오 등 외부 인증 후 복귀): data URI가 있으면 WebView 로드
+        android.net.Uri deepLinkData = intent.getData();
+        if (deepLinkData != null) {
+            String deepUrl = deepLinkData.toString();
+            Bridge deepBridge = getBridge();
+            if (deepBridge != null) {
+                android.webkit.WebView deepWv = deepBridge.getWebView();
+                if (deepWv != null) {
+                    deepWv.post(() -> deepWv.loadUrl(deepUrl));
+                    return;
+                }
+            }
+        }
         handleFcmClickUrl();
     }
 
@@ -773,6 +877,11 @@ public class AppFirebaseMessagingService extends FirebaseMessagingService {
                 .setContentIntent(pi)
                 .setAutoCancel(true);
             nm.notify((int) System.currentTimeMillis(), b.build());
+        }
+
+        // 포그라운드 시 WebView에 __onPushReceived 주입 (배지 실시간 갱신 등)
+        if (data != null && !data.isEmpty()) {
+            MainActivity.notifyWebViewOfPushReceived(data);
         }
     }
 

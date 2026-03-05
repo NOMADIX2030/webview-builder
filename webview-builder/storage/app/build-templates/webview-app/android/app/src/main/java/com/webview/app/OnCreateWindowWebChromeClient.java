@@ -25,13 +25,24 @@ public class OnCreateWindowWebChromeClient extends WebChromeClient {
 
     @Override
     public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, Message resultMsg) {
-        if (resultMsg != null && resultMsg.obj instanceof WebView.WebViewTransport) {
-            WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
-            transport.setWebView(view);
-            resultMsg.sendToTarget();
-            return true;
+        if (resultMsg == null || !(resultMsg.obj instanceof WebView.WebViewTransport)) {
+            return delegate != null ? delegate.onCreateWindow(view, isDialog, isUserGesture, resultMsg) : false;
         }
-        return delegate != null ? delegate.onCreateWindow(view, isDialog, isUserGesture, resultMsg) : false;
+        // 임시 WebView로 URL을 캡처한 뒤 부모 WebView에 loadUrl
+        WebView popupWebView = new WebView(view.getContext());
+        popupWebView.setWebViewClient(new android.webkit.WebViewClient() {
+            @Override
+            public void onPageStarted(WebView pw, String url, android.graphics.Bitmap favicon) {
+                if (url != null && !url.equals("about:blank")) {
+                    view.loadUrl(url);
+                    pw.stopLoading();
+                }
+            }
+        });
+        WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
+        transport.setWebView(popupWebView);
+        resultMsg.sendToTarget();
+        return true;
     }
 
     @Override
