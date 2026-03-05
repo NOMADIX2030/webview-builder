@@ -89,6 +89,41 @@
                 class="block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium dark:file:bg-gray-700 dark:file:text-gray-300">
         </div>
 
+        <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-600">
+            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Android 시스템 바 색상</label>
+            <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">상단 상태바(시간·배터리)와 하단 네비게이션 바의 배경 색상을 선택합니다.</p>
+            <div class="flex gap-4">
+                <label class="flex flex-1 cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-colors
+                    {{ old('system_bar_color', 'white') === 'black'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-600' }}"
+                    id="label-black">
+                    <input type="radio" name="system_bar_color" value="black"
+                        {{ old('system_bar_color', 'white') === 'black' ? 'checked' : '' }}
+                        class="sr-only" id="bar-black">
+                    <span class="inline-block size-8 shrink-0 rounded-md border border-gray-300 bg-black dark:border-gray-500"></span>
+                    <div>
+                        <p class="text-sm font-medium text-gray-800 dark:text-gray-200">블랙</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">흰색 아이콘·텍스트</p>
+                    </div>
+                </label>
+                <label class="flex flex-1 cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-colors
+                    {{ old('system_bar_color', 'white') === 'white'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-600' }}"
+                    id="label-white">
+                    <input type="radio" name="system_bar_color" value="white"
+                        {{ old('system_bar_color', 'white') === 'white' ? 'checked' : '' }}
+                        class="sr-only" id="bar-white">
+                    <span class="inline-block size-8 shrink-0 rounded-md border border-gray-300 bg-white dark:border-gray-500"></span>
+                    <div>
+                        <p class="text-sm font-medium text-gray-800 dark:text-gray-200">화이트</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">어두운 아이콘·텍스트</p>
+                    </div>
+                </label>
+            </div>
+        </div>
+
         <button type="submit"
             class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
             다음 (2단계)
@@ -98,6 +133,28 @@
 
 @push('scripts')
 <script>
+// 시스템 바 색상 라디오 선택 UI
+(function() {
+    const radios = document.querySelectorAll('input[name="system_bar_color"]');
+    const labels = { black: document.getElementById('label-black'), white: document.getElementById('label-white') };
+    const activeClass = ['border-blue-500', 'bg-blue-50', 'dark:bg-blue-900/20'];
+    const inactiveClass = ['border-gray-200', 'dark:border-gray-600'];
+    function update(val) {
+        Object.keys(labels).forEach(k => {
+            const el = labels[k];
+            if (!el) return;
+            if (k === val) {
+                el.classList.remove(...inactiveClass);
+                el.classList.add(...activeClass);
+            } else {
+                el.classList.remove(...activeClass);
+                el.classList.add(...inactiveClass);
+            }
+        });
+    }
+    radios.forEach(r => r.addEventListener('change', () => update(r.value)));
+})();
+
 document.getElementById('app_icon').addEventListener('change', function(e) {
     const file = e.target.files?.[0];
     const preview = document.getElementById('icon-preview');

@@ -46,6 +46,7 @@ webview-builder/storage/app/build-templates/webview-app/
 | MainActivity.java | `{{EXTRA_PERMISSIONS_ARRAY}}`, `{{FCM_*}}` | 추가 권한, FCM 블록 |
 | OAuthWebViewClient.java | `{{APP_DOMAIN_PATTERN}}`, `{{APP_BASE_URL}}`, `{{FCM_BRIDGE_INJECT}}` | 앱 도메인 패턴, FCM 브릿지 |
 | AndroidManifest.xml | `{{EXTRA_PERMISSIONS}}`, `{{SPLASH_THEME_NAME}}` | 추가 권한, 스플래시/즉시실행 테마 |
+| android/.../res/values/styles.xml | `{{STATUS_BAR_COLOR}}`, `{{NAV_BAR_COLOR}}`, `{{WINDOW_LIGHT_STATUS_BAR}}`, `{{WINDOW_LIGHT_NAV_BAR}}` | 시스템 바 색상 (injectSystemBarColor) |
 
 ---
 
@@ -124,7 +125,7 @@ webview-builder/storage/app/build-templates/webview-app/
 | 기능 | 구현 |
 |------|------|
 | 뒤로가기 | `goBack()` → 서브 경로면 origin 이동 → 루트에서 2회 연속 시 종료 |
-| Edge-to-edge | `WindowCompat.setDecorFitsSystemWindows(false)`, 상태바 숨김 |
+| 시스템 바 | `setDecorFitsSystemWindows(true)`, 상태바·네비게이션 바 정상 표시 (색상: 1단계 선택) |
 | 권한 요청 | 저장소, 알림(POST_NOTIFICATIONS), 2단계 추가 권한 |
 | WebView 핸들러 | DownloadBridge, DownloadListener, OAuthWebViewClient, OnCreateWindowWebChromeClient |
 | FCM | 토큰 → `window.onFcmTokenReady`, 알림 탭 시 URL 로드 |
@@ -164,8 +165,15 @@ webview-builder/storage/app/build-templates/webview-app/
 ### 4.2 injectSplashConfig()
 
 - `splash_image_path` 유무에 따라 `{{SPLASH_THEME_NAME}}` 치환: `AppTheme.NoActionBarLaunch` / `AppTheme.NoActionBar`
+- `injectSystemBarColor()` 호출
 - 업로드 있음: `copySplash()` → drawable, drawable-port-*, drawable-land-*에 splash.png 복사
 - 업로드 없음: Launch 테마 미사용 → 즉시 앱 실행
+
+### 4.2.1 injectSystemBarColor()
+
+- `config_json.system_bar_color` (black/white, 기본 white)에 따라 styles.xml 플레이스홀더 치환
+- `{{STATUS_BAR_COLOR}}`, `{{NAV_BAR_COLOR}}`: #FFFFFFFF(화이트) 또는 #FF000000(블랙)
+- `{{WINDOW_LIGHT_STATUS_BAR}}`, `{{WINDOW_LIGHT_NAV_BAR}}`: 화이트 시 true → 어두운 아이콘·텍스트
 
 ### 4.3 injectSplashConfigIos()
 

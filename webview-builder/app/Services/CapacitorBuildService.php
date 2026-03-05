@@ -273,8 +273,41 @@ class CapacitorBuildService
             File::put($manifestPath, $content);
         }
 
+        $this->injectSystemBarColor($projectPath, $build);
+
         if ($hasSplash) {
             $this->copySplash($projectPath, $build);
+        }
+    }
+
+    /**
+     * styles.xml 에 상태바/네비게이션 바 색상 플레이스홀더를 실제 값으로 치환.
+     * 화이트: #FFFFFFFF (API 27+ windowLightStatusBar/windowLightNavigationBar = true)
+     * 블랙:  #FF000000 (기본값)
+     */
+    private function injectSystemBarColor(string $projectPath, Build $build): void
+    {
+        $barColor = ($build->config_json['system_bar_color'] ?? 'white') === 'white' ? 'white' : 'black';
+
+        if ($barColor === 'white') {
+            $colorHex        = '#FFFFFFFF';
+            $lightStatusBar  = 'true';
+            $lightNavBar     = 'true';
+        } else {
+            $colorHex        = '#FF000000';
+            $lightStatusBar  = 'false';
+            $lightNavBar     = 'false';
+        }
+
+        $stylesPath = "{$projectPath}/android/app/src/main/res/values/styles.xml";
+        if (File::exists($stylesPath)) {
+            $content = File::get($stylesPath);
+            $content = str_replace(
+                ['{{STATUS_BAR_COLOR}}', '{{NAV_BAR_COLOR}}', '{{WINDOW_LIGHT_STATUS_BAR}}', '{{WINDOW_LIGHT_NAV_BAR}}'],
+                [$colorHex,             $colorHex,            $lightStatusBar,               $lightNavBar],
+                $content
+            );
+            File::put($stylesPath, $content);
         }
     }
 

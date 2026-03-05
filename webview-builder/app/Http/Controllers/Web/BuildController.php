@@ -32,6 +32,7 @@ class BuildController extends Controller
             'splash' => ['nullable', 'file', 'mimes:png,jpg,jpeg', 'max:5120'],
             'platforms' => ['required', 'array', 'min:1'],
             'platforms.*' => ['string', 'in:android,ios'],
+            'system_bar_color' => ['nullable', 'in:black,white'],
         ]);
 
         $iconPath = $request->file('app_icon')->store('uploads/' . Str::random(8), 'public');
@@ -51,6 +52,7 @@ class BuildController extends Controller
                 'app_icon_path' => $iconPath,
                 'splash_image_path' => $splashPath,
                 'platforms' => $platforms,
+                'system_bar_color' => $validated['system_bar_color'] ?? 'white',
             ],
         ]);
 
@@ -193,6 +195,7 @@ class BuildController extends Controller
                 'fcm_enabled' => $step2['fcm_enabled'] ?? false,
                 'google_services_path' => $step2['google_services_path'] ?? null,
                 'fcm_click_url_key' => $step2['fcm_click_url_key'] ?? 'action_url',
+                'system_bar_color' => $step1['system_bar_color'] ?? 'white',
             ],
         ]);
 

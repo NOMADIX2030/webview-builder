@@ -51,11 +51,11 @@ if (compat != null) {
 
 ### 2.3 동작 추정
 
-| 항목 | 상태 |
-|------|------|
-| `hide()` | 호출은 되나, 실제로는 상태바가 숨겨지지 않음(또는 곧 다시 나타남) |
-| `statusBarColor` | 투명 → 웹 배경(흰색)이 비침 |
-| 아이콘 | 검정색으로 보임 → “페이크 숨김”처럼 느껴짐 |
+| 항목             | 상태                                                              |
+| ---------------- | ----------------------------------------------------------------- |
+| `hide()`         | 호출은 되나, 실제로는 상태바가 숨겨지지 않음(또는 곧 다시 나타남) |
+| `statusBarColor` | 투명 → 웹 배경(흰색)이 비침                                       |
+| 아이콘           | 검정색으로 보임 → “페이크 숨김”처럼 느껴짐                        |
 
 ---
 
@@ -82,11 +82,11 @@ windowInsetsController.hide(WindowInsetsCompat.Type.statusBars());
 
 ### 3.2 `setSystemBarsBehavior` 역할
 
-| 값 | 의미 |
-|----|------|
+| 값                                      | 의미                                        |
+| --------------------------------------- | ------------------------------------------- |
 | `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE` | 스와이프 시 일시적으로만 표시, 곧 다시 숨김 |
-| `BEHAVIOR_SHOW_BARS_BY_SWIPE` | 스와이프 시 표시 후 유지 |
-| `BEHAVIOR_SHOW_BARS_BY_TOUCH` | 터치 시 표시 |
+| `BEHAVIOR_SHOW_BARS_BY_SWIPE`           | 스와이프 시 표시 후 유지                    |
+| `BEHAVIOR_SHOW_BARS_BY_TOUCH`           | 터치 시 표시                                |
 
 - `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE`가 immersive 모드에 적합
 - 이 값을 설정하지 않으면 기본 동작에 따라 숨김이 유지되지 않을 수 있음
@@ -111,7 +111,7 @@ windowInsetsController.hide(WindowInsetsCompat.Type.statusBars());
 ```java
 public void hide() {
     View decorView = activity.getWindow().getDecorView();
-    WindowInsetsControllerCompat windowInsetsControllerCompat = 
+    WindowInsetsControllerCompat windowInsetsControllerCompat =
         WindowCompat.getInsetsController(activity.getWindow(), decorView);
     windowInsetsControllerCompat.hide(WindowInsetsCompat.Type.statusBars());
     // ...
@@ -132,12 +132,12 @@ public void hide() {
 
 ### 5.1 가능한 원인
 
-| 원인 | 설명 |
-|------|------|
-| `setSystemBarsBehavior` 미설정 | 기본 동작으로 인해 숨김이 유지되지 않을 수 있음 |
-| `onResume`에서 재호출 없음 | 홈/다른 앱 전환 후 돌아오면 상태바가 다시 나타날 수 있음 |
-| BridgeActivity/Capacitor 간섭 | `super.onCreate()` 이후 WebView/레이아웃 설정이 상태바를 다시 보이게 할 수 있음 |
-| 호출 순서 | `setDecorFitsSystemWindows(false)`와 `hide()` 순서·시점이 부적절할 수 있음 |
+| 원인                           | 설명                                                                            |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| `setSystemBarsBehavior` 미설정 | 기본 동작으로 인해 숨김이 유지되지 않을 수 있음                                 |
+| `onResume`에서 재호출 없음     | 홈/다른 앱 전환 후 돌아오면 상태바가 다시 나타날 수 있음                        |
+| BridgeActivity/Capacitor 간섭  | `super.onCreate()` 이후 WebView/레이아웃 설정이 상태바를 다시 보이게 할 수 있음 |
+| 호출 순서                      | `setDecorFitsSystemWindows(false)`와 `hide()` 순서·시점이 부적절할 수 있음      |
 
 ### 5.2 “페이크 숨김”이 되는 이유
 
@@ -159,6 +159,7 @@ public void hide() {
 ### 6.2 권장 수정 사항
 
 1. **`setSystemBarsBehavior()` 추가**
+
    ```java
    compat.setSystemBarsBehavior(
        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
@@ -166,6 +167,7 @@ public void hide() {
    ```
 
 2. **`onResume()`에서 재호출**
+
    ```java
    @Override
    public void onResume() {
@@ -187,23 +189,37 @@ public void hide() {
 
 ### 7.1 2026-03-06: 기본 상태바 복원
 
-| 파일 | 변경 |
-|------|------|
-| **MainActivity.java** | `applyStatusBarHidden()` 제거, `setDecorFitsSystemWindows(true)`로 기본 상태바 표시 |
-| **styles.xml** | `statusBarColor`/`navigationBarColor`: `@android:color/black` 유지 (시스템 기본 스타일) |
+| 파일                  | 변경                                                                                    |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| **MainActivity.java** | `applyStatusBarHidden()` 제거, `setDecorFitsSystemWindows(true)`로 기본 상태바 표시     |
+| **styles.xml**        | `statusBarColor`/`navigationBarColor`: `@android:color/black` 유지 (시스템 기본 스타일) |
 
 ### 7.2 현재 동작
 
 - **상태바(배터리·시간·알림 아이콘) 정상 표시** — Android 시스템 기본 상단 트레이
 - `WindowCompat.setDecorFitsSystemWindows(getWindow(), true)`: 콘텐츠가 상태바 아래에 배치
 
+### 7.3 2026-03-06: 시스템 바 색상 선택 옵션
+
+| 파일 | 변경 |
+|------|------|
+| **step1.blade.php** | 블랙/화이트 라디오 선택 UI 추가. 기본값: 화이트 |
+| **BuildController** | `system_bar_color` 검증·세션·config_json 저장 |
+| **CapacitorBuildService** | `injectSystemBarColor()` — styles.xml 플레이스홀더 치환 |
+| **styles.xml** | `{{STATUS_BAR_COLOR}}`, `{{NAV_BAR_COLOR}}`, `{{WINDOW_LIGHT_STATUS_BAR}}`, `{{WINDOW_LIGHT_NAV_BAR}}` |
+
+| 선택 | statusBarColor | windowLightStatusBar | 아이콘·텍스트 |
+|------|----------------|----------------------|----------------|
+| 화이트 (기본) | #FFFFFFFF | true | 어두운 색 |
+| 블랙 | #FF000000 | false | 흰색 |
+
 ---
 
 ## 8. 참고 문서
 
-| 문서 | URL |
-|------|-----|
-| Hide the status bar | https://developer.android.com/training/system-ui/status |
-| Hide system bars for immersive mode | https://developer.android.com/develop/ui/views/layout/immersive |
-| Capacitor Status Bar API | https://capacitorjs.com/docs/apis/status-bar |
-| Capacitor StatusBar Android 소스 | https://github.com/ionic-team/capacitor-plugins/blob/main/status-bar/android/ |
+| 문서                                | URL                                                                           |
+| ----------------------------------- | ----------------------------------------------------------------------------- |
+| Hide the status bar                 | https://developer.android.com/training/system-ui/status                       |
+| Hide system bars for immersive mode | https://developer.android.com/develop/ui/views/layout/immersive               |
+| Capacitor Status Bar API            | https://capacitorjs.com/docs/apis/status-bar                                  |
+| Capacitor StatusBar Android 소스    | https://github.com/ionic-team/capacitor-plugins/blob/main/status-bar/android/ |

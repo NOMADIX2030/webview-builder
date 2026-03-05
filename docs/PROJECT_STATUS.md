@@ -1,6 +1,6 @@
 # 프로젝트 현황
 
-> **최종 업데이트**: 2026년 3월 6일 (스플래시 조건부, 상태바 복원, core-splashscreen 1.0.1)
+> **최종 업데이트**: 2026년 3월 6일 (시스템 바 색상 선택 옵션 추가)
 
 ---
 
@@ -19,7 +19,7 @@
 
 | 구분 | 내용 |
 |------|------|
-| **1단계** | 웹 URL, 앱 아이콘(512×512 권장), 스플래시 업로드 |
+| **1단계** | 웹 URL, 앱 아이콘(512×512 권장), 스플래시 업로드, Android 시스템 바 색상(블랙/화이트) |
 | **2단계** | 도메인 기반 자동 생성값(앱 이름, 패키지 ID 등) 확인·수정, FCM 푸시(google-services.json) 선택 |
 | **3단계** | 모바일 시뮬레이션, APK 적용 아이콘 미리보기, 빌드 요청 |
 | **빌드** | Capacitor 템플릿, @capacitor/assets 아이콘 생성(PHP GD 폴백), Android APK, Keystore 자동 생성 (동기 실행, 2~5분) |
@@ -35,6 +35,7 @@
 | **앱 도메인 URL** | OAuthWebViewClient에서 앱 서버 도메인(web_url) URL도 WebView 내 로드 | FCM 채팅 등 동일 도메인 링크가 브라우저로 열리지 않음 |
 | **스플래시 조건부** | 업로드 시에만 Launch 테마·스플래시 표시, 미업로드 시 즉시 앱 실행 | injectSplashConfig, copySplash, injectSplashConfigIos |
 | **상태바** | Android 시스템 기본 상단 트레이 정상 표시 (시간·배터리·알림) | setDecorFitsSystemWindows(true) |
+| **시스템 바 색상** | 1단계에서 블랙/화이트 선택. 화이트 시 어두운 아이콘·텍스트 (windowLightStatusBar) | injectSystemBarColor, styles.xml 플레이스홀더 |
 | **window.open 처리** | WebChromeClient.onCreateWindow로 target="_blank" 시 부모 WebView에 로드 | 외부 브라우저 이탈 방지 |
 | **PDF/이미지 저장** | DownloadListener → PDF는 Downloads, 이미지는 Pictures(갤러리). blob URL: 훅+이중전략+클릭가로채기 (optiflow 등) | WRITE_EXTERNAL_STORAGE, READ_MEDIA_IMAGES (API 33+) |
 | **아이콘 생성** | `@capacitor/assets` 1차 시도, 실패 시 PHP GD 폴백 | `npx @capacitor/assets generate --android` |
@@ -76,6 +77,7 @@
 | iOS 스플래시 | injectSplashConfigIos: 업로드 시 Splash.imageset 복사, 없으면 흰색 빈 이미지 |
 | 스플래시 최소 시간 | max(2초, 페이지 로드) — OAuthWebViewClient postDelayed |
 | 상태바 복원 | Edge-to-edge 숨김 제거 → 기본 상태바 표시 |
+| **시스템 바 색상** | 1단계 UI: 블랙/화이트 선택. 기본값 화이트. injectSystemBarColor로 styles.xml 치환 |
 | core-splashscreen | 1.0.1 (compileSdk 34, AGP 8.2.1 호환) |
 | @capacitor/splash-screen | ^6.0.1 추가, launchAutoHide: false |
 
