@@ -1,16 +1,28 @@
 # 프로젝트 현황
 
-> **최종 업데이트**: 2026년 3월 6일 (문서 추가: 앱링크 확장, 네이티브 하단탭바 개발예정안)
+> **최종 업데이트**: 2026년 3월 9일 (랜딩 페이지 뉴스 섹션, TechCrunch 내부 상세, 영어→한국어 번역)
 
 ---
 
 ## 1. 현재 상태
 
-### 1.0 UI 마이그레이션 (Next.js → Laravel Blade)
+### 1.0 랜딩 페이지 (2026-03-09 완료)
 
 | 구분 | 내용 |
 |------|------|
-| **프론트엔드** | Laravel Blade + Tailwind (서버사이드 렌더링) |
+| **경로** | `/` → LandingController, `/settings` → 설정 UI, `/news/detail` → 뉴스 상세 |
+| **섹션** | search-bar, feature-grid, news-grid (config/landing.php) |
+| **뉴스 소스** | 연합뉴스, TechCrunch, VentureBeat, MIT Review (발행처별 탭) |
+| **뉴스 상세** | 연합뉴스·TechCrunch → 내부 상세 페이지(스크래핑), VentureBeat·MIT → 외부 링크 |
+| **번역** | 영어 뉴스(제목·설명·TechCrunch 본문) → Stichoza/google-translate-php 무료 한국어 번역, 24시간 캐시 |
+| **API** | `GET /api/landing/news`, `GET /api/landing/news/counts`, `GET /api/landing/settings` |
+| **설정** | 로고 이미지·텍스트, 기능 카드 CRUD (LandingSettingsService, landing_settings·landing_features 테이블) |
+
+### 1.1 UI 마이그레이션 (Next.js → Laravel Blade)
+
+| 구분 | 내용 |
+|------|------|
+| **프론트엔드** | Laravel Blade + Bootstrap 5.3 (랜딩), Tailwind (빌드 단계) |
 | **경로** | `/` → /build/step1, `/build/step2`, `/build/step3`, `/build/{id}` |
 | **nginx** | `/` → Laravel `public`, `/api` → Laravel API |
 | **세션** | `build_step1`, `build_step2` (폼 데이터) |
@@ -92,6 +104,7 @@
 | 2 | iOS IPA 배포 빌드 (Phase 4) | 프로비저닝 프로파일, 서명 설정 |
 | 3 | iOS FCM 푸시 (Phase 2) | GoogleService-Info.plist, APNs |
 | 4 | 네이티브 하단 탭바 (개발 예정) | 하단 네비 없는 웹용 옵션, SVG 아이콘 입력 |
+| 5 | 랜딩 페이지 확장 | 뉴스 섹션 키워드 검색 고도화, 추가 RSS 소스 |
 
 ---
 
@@ -116,3 +129,4 @@
 | FCM_푸시알림_클릭_이슈_분석.md | FCM 클릭 시 관리자 페이지 이동 이슈 원인·해결 |
 | 앱링크_딥링크_확장기능_가이드.md | App Links 활용: QR, 소셜 로그인, 네이티브 기능 트리거 |
 | 네이티브_하단탭바_개발예정안.md | **개발 예정** 하단 탭바 옵션 명세 (SVG 아이콘, Phase 계획) |
+| 랜딩페이지_개발명세.md | **구현 완료** 랜딩 페이지 명세 (섹션 모듈화, 뉴스 그리드, 설정 UI, API) |

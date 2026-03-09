@@ -1,9 +1,13 @@
 <?php
 
 use App\Http\Controllers\Web\BuildController;
+use App\Http\Controllers\Web\LandingController;
+use App\Http\Controllers\Web\NewsDetailController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => redirect()->route('build.step1'));
+Route::get('/', [LandingController::class, 'index'])->name('landing.index');
+Route::get('/settings', [LandingController::class, 'settings'])->name('landing.settings');
+Route::get('/news/detail', [NewsDetailController::class, 'show'])->name('news.detail');
 
 Route::prefix('build')->name('build.')->group(function () {
     Route::get('/step1', [BuildController::class, 'step1'])->name('step1');

@@ -201,6 +201,18 @@
 
 ### 5.2 엔드포인트
 
+#### 랜딩 페이지 API (2026-03-09)
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/landing/news` | 페이징 뉴스 (`page`, `category`, `q`) |
+| GET | `/api/landing/news/counts` | 탭별 뉴스 개수 |
+| GET | `/api/landing/settings` | 로고·기능 카드 설정 |
+| POST | `/api/landing/settings/logo` | 로고 업데이트 |
+| POST | `/api/landing/features` | 기능 카드 생성 |
+| PUT | `/api/landing/features/{id}` | 기능 카드 수정 |
+| DELETE | `/api/landing/features/{id}` | 기능 카드 삭제 |
+
 #### POST /api/build
 
 빌드 요청 생성.
