@@ -1,13 +1,20 @@
 <?php
 
 use App\Http\Controllers\Api\BuildController;
+use App\Http\Controllers\Api\ChatController as ApiChatController;
 use App\Http\Controllers\Api\LandingNewsController;
 use App\Http\Controllers\Api\LandingSettingsController;
+use App\Http\Controllers\Api\LandingTodaySummaryController;
+use App\Http\Controllers\Api\LandingWeatherController;
 use App\Http\Controllers\Api\UploadController;
 use Illuminate\Support\Facades\Route;
 
+Route::post('/chat', [ApiChatController::class, 'send']);
+
 Route::get('/landing/news', [LandingNewsController::class, 'index']);
 Route::get('/landing/news/counts', [LandingNewsController::class, 'counts']);
+Route::get('/landing/today-summary', [LandingTodaySummaryController::class, 'show']);
+Route::get('/landing/weather', [LandingWeatherController::class, 'show']);
 Route::get('/landing/settings', [LandingSettingsController::class, 'show']);
 Route::post('/landing/settings/logo', [LandingSettingsController::class, 'updateLogo']);
 Route::post('/landing/features', [LandingSettingsController::class, 'storeFeature']);

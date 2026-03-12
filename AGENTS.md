@@ -55,8 +55,9 @@
 - **앱 도메인 URL 처리**: OAuthWebViewClient에서 앱 서버 도메인 URL도 WebView 내 로드 (브라우저 이탈 방지)
 - **window.open 처리**: WebChromeClient.onCreateWindow로 target="_blank" 시 부모 WebView에 로드
 
-### 최근 작업 (2026-03-02)
+### 최근 작업 (2026-03-11)
 
+- **랜딩 확장**: 오늘의 뉴스 AI 요약(TodaySummaryService, Groq), YTN 유튜브(YtnYoutubeService), 날씨(WeatherExtractService), AI 채팅(/chat)
 - **FCM 알림 기능**: 전체 정상 동작 검증 완료 — cold start 세션 복원(app-token/app-login), redirect URL 인코딩, 채팅방 정확 이동
 - **FCM 가이드**: FCM_WEB_DEVELOPER_GUIDE.md 웹 개발자용 상세 안내 (토큰 수신, SPA 예시, app-token/app-login 섹션 추가)
 - OAuth/소셜 로그인: Android·iOS 카카오 로그인 인앱 처리 (검증 완료)

@@ -31,8 +31,8 @@ class LandingNewsController extends Controller
         $category = $request->query('category', 'all');
         $query    = trim((string) $request->query('q', ''));
 
-        // 허용된 카테고리만 통과
-        $allowed = ['yonhap', 'techcrunch', 'venturebeat', 'mit'];
+        // 허용된 카테고리만 통과 (all = 전체 발행처 통합 검색)
+        $allowed = ['yonhap', 'techcrunch', 'venturebeat', 'mit', 'all'];
         if (! in_array($category, $allowed, true)) {
             $category = 'yonhap';
         }

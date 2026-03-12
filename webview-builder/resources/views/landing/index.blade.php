@@ -9,6 +9,9 @@
                 'section' => $section,
                 'features' => $section['id'] === 'feature-grid' ? $features : null,
                 'news' => $section['id'] === 'news-grid' ? ($news ?? []) : null,
+                'todaySummary' => $section['id'] === 'today-summary' ? ($todaySummary ?? null) : null,
+                'ytnVideos' => $section['id'] === 'ytn-youtube-section' ? ($ytnVideos ?? collect()) : null,
+                'weatherData' => $section['id'] === 'weather-section' ? ($weatherData ?? null) : null,
             ])
         @endforeach
     </div>

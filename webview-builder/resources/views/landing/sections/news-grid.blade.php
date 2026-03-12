@@ -83,6 +83,15 @@
     let currentQuery    = '';
     let searchTimer     = null;
 
+    // URL 파라미터 news_q: 키워드 태그 클릭 시 검색
+    const urlParams = new URLSearchParams(location.search);
+    const initialQ = urlParams.get('news_q');
+    if (initialQ) {
+        currentQuery = initialQ;
+        currentCategory = 'all';
+        if (searchInput) searchInput.value = initialQ;
+    }
+
     function loadNews(page, append) {
         const params = new URLSearchParams({
             page:     page,
@@ -183,6 +192,8 @@
             loadNews(nextPage, true);
         });
     }
+
+    if (initialQ) loadNews(1, false);
 })();
 </script>
 @endpush

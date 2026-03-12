@@ -1,22 +1,38 @@
 # 프로젝트 현황
 
-> **최종 업데이트**: 2026년 3월 9일 (랜딩 페이지 뉴스 섹션, TechCrunch 내부 상세, 영어→한국어 번역)
+> **최종 업데이트**: 2026년 3월 11일 (오늘의 뉴스 AI 요약, YTN 유튜브, 날씨 섹션, AI 채팅)
 
 ---
 
 ## 1. 현재 상태
 
-### 1.0 랜딩 페이지 (2026-03-09 완료)
+### 1.0 랜딩 페이지 (2026-03-11 확장 완료)
 
 | 구분 | 내용 |
 |------|------|
-| **경로** | `/` → LandingController, `/settings` → 설정 UI, `/news/detail` → 뉴스 상세 |
-| **섹션** | search-bar, feature-grid, news-grid (config/landing.php) |
-| **뉴스 소스** | 연합뉴스, TechCrunch, VentureBeat, MIT Review (발행처별 탭) |
+| **경로** | `/` → LandingController, `/settings` → 설정 UI, `/news/detail` → 뉴스 상세, `/chat` → AI 채팅 |
+| **섹션** | search-bar, feature-grid, today-summary, ytn-youtube-section, weather-section, news-grid (config/landing.php) |
+| **뉴스 소스** | 연합뉴스, TechCrunch, VentureBeat, MIT Review (발행처별 탭, category=all 지원) |
 | **뉴스 상세** | 연합뉴스·TechCrunch → 내부 상세 페이지(스크래핑), VentureBeat·MIT → 외부 링크 |
 | **번역** | 영어 뉴스(제목·설명·TechCrunch 본문) → Stichoza/google-translate-php 무료 한국어 번역, 24시간 캐시 |
-| **API** | `GET /api/landing/news`, `GET /api/landing/news/counts`, `GET /api/landing/settings` |
+| **API** | `GET /api/landing/news`, `GET /api/landing/news/counts`, `GET /api/landing/today-summary`, `GET /api/landing/weather`, `POST /api/chat`, `GET /api/landing/settings` |
 | **설정** | 로고 이미지·텍스트, 기능 카드 CRUD (LandingSettingsService, landing_settings·landing_features 테이블) |
+
+#### 1.0.1 신규 섹션 (2026-03-11)
+
+| 섹션 | 설명 | 서비스 | 스케줄 |
+|------|------|--------|--------|
+| **오늘의 뉴스** | 발행처별 뉴스 통합 → Groq(Llama) AI 요약 | TodaySummaryService, TodaySummaryJob | 30분 |
+| **YTN 유튜브** | YTN 채널 RSS → 넷플릭스 스타일 가로 슬라이딩, 모달 재생, 발행시간 표시 | YtnYoutubeService | 15분 캐시 |
+| **날씨** | Open-Meteo + 연합뉴스 날씨 키워드 기상 뉴스 | WeatherExtractService, weather:refresh | 30분 |
+| **AI 채팅** | ChatGPT 스타일 대화 UI, `/chat` | ChatService | - |
+
+#### 1.0.2 뉴스 UX 개선
+
+| 항목 | 내용 |
+|------|------|
+| **전체 검색** | category=all: 발행처 통합 검색 |
+| **키워드 태그** | `?news_q=키워드` URL 파라미터로 검색창 초기값 설정 |
 
 ### 1.1 UI 마이그레이션 (Next.js → Laravel Blade)
 
@@ -130,3 +146,5 @@
 | 앱링크_딥링크_확장기능_가이드.md | App Links 활용: QR, 소셜 로그인, 네이티브 기능 트리거 |
 | 네이티브_하단탭바_개발예정안.md | **개발 예정** 하단 탭바 옵션 명세 (SVG 아이콘, Phase 계획) |
 | 랜딩페이지_개발명세.md | **구현 완료** 랜딩 페이지 명세 (섹션 모듈화, 뉴스 그리드, 설정 UI, API) |
+| 채팅_UX_가이드.md | AI 채팅 UI/UX 가이드 |
+| 날씨_하이브리드_전략.md | 날씨 섹션 Open-Meteo + AI 추출 전략 |

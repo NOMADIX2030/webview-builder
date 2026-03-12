@@ -51,19 +51,78 @@ class NewsRssService
     public function getPaged(int $page, string $category = 'yonhap', string $query = ''): Collection
     {
         $page = max(1, $page);
-        return $this->getFiltered($category, $query)
-            ->slice(($page - 1) * self::PER_PAGE, self::PER_PAGE)
-            ->values();
+        $items = $category === 'all'
+            ? $this->getFilteredAll($query)
+            : $this->getFiltered($category, $query);
+        return $items->slice(($page - 1) * self::PER_PAGE, self::PER_PAGE)->values();
     }
 
     public function hasMore(int $page, string $category = 'yonhap', string $query = ''): bool
     {
-        return $this->getFiltered($category, $query)->count() > $page * self::PER_PAGE;
+        $items = $category === 'all'
+            ? $this->getFilteredAll($query)
+            : $this->getFiltered($category, $query);
+        return $items->count() > $page * self::PER_PAGE;
     }
 
     public function total(string $category = 'yonhap', string $query = ''): int
     {
-        return $this->getFiltered($category, $query)->count();
+        $items = $category === 'all'
+            ? $this->getFilteredAll($query)
+            : $this->getFiltered($category, $query);
+        return $items->count();
+    }
+
+    /** 날씨 관련 키워드 (연합뉴스 필터용) */
+    private const WEATHER_KEYWORDS = [
+        '날씨', '기상', '기온', '예보', '미세먼지', '황사', '한파', '폭염',
+        '강수', '눈', '비', '안개', '건조', '태풍', '호우', '폭설', '쾌청',
+        '최저', '최고', '체감', '습도', '바람', '결빙',
+    ];
+
+    /**
+     * 연합뉴스에서 날씨 관련 뉴스만 필터 (오늘/최근 우선).
+     * 기존 RSS 캐시만 사용.
+     */
+    public function getWeatherNews(int $limit = 15): Collection
+    {
+        $items = $this->getAllCached('yonhap');
+        $todayStart = strtotime(date('Y-m-d 00:00:00'));
+        $keywords = self::WEATHER_KEYWORDS;
+
+        return $items
+            ->filter(function ($item) use ($keywords) {
+                $text = mb_strtolower(($item['title'] ?? '') . ' ' . ($item['description'] ?? ''));
+                foreach ($keywords as $kw) {
+                    if (mb_strpos($text, $kw) !== false) {
+                        return true;
+                    }
+                }
+                return false;
+            })
+            ->sortByDesc(fn ($item) => strtotime($item['pubDate'] ?? '') ?: 0)
+            ->take($limit)
+            ->values();
+    }
+
+    /**
+     * 오늘 AI 요약용: 발행처별 뉴스를 병합하여 최신순 상위 N건 반환.
+     * 기존 RSS 캐시만 사용(추가 HTTP 요청 없음).
+     */
+    public function getAggregatedForToday(int $limit = 25): Collection
+    {
+        $merged = collect();
+        foreach (array_keys(self::RSS_FEEDS) as $category) {
+            $items = $this->getAllCached($category);
+            foreach ($items as $item) {
+                $merged->push($item);
+            }
+        }
+
+        return $merged
+            ->sortByDesc(fn ($item) => strtotime($item['pubDate'] ?? '') ?: 0)
+            ->take($limit)
+            ->values();
     }
 
     private function getFiltered(string $category, string $query): Collection
@@ -79,6 +138,21 @@ class NewsRssService
         }
 
         return $items;
+    }
+
+    private function getFilteredAll(string $query): Collection
+    {
+        $merged = $this->getAggregatedForToday(200);
+
+        if ($query !== '') {
+            $q = mb_strtolower(trim($query));
+            $merged = $merged->filter(function ($item) use ($q) {
+                $text = mb_strtolower(($item['title'] ?? '') . ' ' . ($item['description'] ?? ''));
+                return mb_strpos($text, $q) !== false;
+            })->values();
+        }
+
+        return $merged;
     }
 
     private function getAllCached(string $category): Collection
